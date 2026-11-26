@@ -87,6 +87,11 @@
               <label id="openai-complexity" hidden>复杂度<select id="complexity"><option value="">模型默认</option><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label>
               <button type="button" class="subtle-button" id="enable-layers"><span data-icon="layers"></span>图层拆分</button>
             </div>
+            <div class="size-options" id="gif-options" hidden>
+              <label>帧数<input id="frame-count" aria-label="GIF 帧数" type="number" min="2" max="16" step="1" value="9" disabled></label>
+              <label>每帧时长<input id="frame-duration" aria-label="GIF 每帧时长（毫秒）" type="number" min="20" step="1" value="200" disabled><span>ms</span></label>
+              <span class="field-note">描述动作和循环方式 · 每帧时长由模型按 10 ms 取整</span>
+            </div>
             <div class="layer-options" id="layer-options" hidden>
               <label>最多输出<input id="max-images" type="number" min="2" max="100" value="30"><span>张（含底图）</span></label>
               <label class="check-label"><input id="text-recognition" type="checkbox" checked>识别文字与样式</label>

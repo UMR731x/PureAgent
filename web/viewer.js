@@ -19,7 +19,7 @@ export async function copyImage(sessionID, asset) {
     return new Promise((resolve, reject) => canvas.toBlob(result => result ? resolve(result) : reject(new Error('无法复制此图片格式')), 'image/png'));
   })();
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-  toast(asset.mime === 'image/png' ? '图片已复制' : '已按原始尺寸复制为 PNG');
+  toast(asset.mime === 'image/gif' ? '已复制 GIF 首帧为 PNG；完整动画请下载原图' : asset.mime === 'image/png' ? '图片已复制' : '已按原始尺寸复制为 PNG');
 }
 
 export function createViewer(callbacks) {
@@ -59,7 +59,8 @@ export function createViewer(callbacks) {
     asset = selectedAsset;
     $('viewer-image').src = assetURL(session.id, asset.id);
     $('viewer-title').textContent = asset.name;
-    $('viewer-dimensions').textContent = `${asset.width ? `${asset.width} × ${asset.height} · ` : ''}${fileSize(asset.bytes)}`;
+    $('viewer-dimensions').textContent = `${asset.mime === 'image/gif' ? 'GIF 动图 · ' : ''}${asset.width ? `${asset.width} × ${asset.height} · ` : ''}${fileSize(asset.bytes)}`;
+    $('viewer-copy').innerHTML = `${icon('copy')}${asset.mime === 'image/gif' ? '复制首帧' : '复制图片'}`;
     $('viewer-download').href = assetURL(session.id, asset.id, true);
     $('viewer-download').download = asset.name;
     $('viewer-stage').classList.remove('original');

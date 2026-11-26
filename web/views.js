@@ -5,11 +5,12 @@ function imageCard(session, output) {
   const asset = session.assets.find(item => item.id === output.asset_id);
   if (!asset) return '';
   const label = output.name || output.size || (asset.width ? `${asset.width} × ${asset.height}` : '原图');
+  const copyLabel = asset.mime === 'image/gif' ? '复制首帧' : '复制图片';
   return `<figure class="image-card">
     <button class="image-card-preview" data-view="${esc(asset.id)}" aria-label="查看 ${esc(label)}"><img src="${assetURL(session.id, asset.id)}" alt="${esc(output.description || output.name || '模型生成图像')}" loading="lazy"><span class="image-card-hover">${icon('zoom')}</span></button>
     <figcaption class="image-card-footer"><span class="image-card-name" title="${esc(label)}">${esc(label)}</span><div class="image-actions">
       <button class="icon-button" data-edit="${esc(asset.id)}" title="编辑图片" aria-label="编辑图片">${icon('pen')}</button>
-      <button class="icon-button" data-copy="${esc(asset.id)}" title="复制图片" aria-label="复制图片">${icon('copy')}</button>
+      <button class="icon-button" data-copy="${esc(asset.id)}" title="${copyLabel}" aria-label="${copyLabel}">${icon('copy')}</button>
       <a class="icon-button" href="${assetURL(session.id, asset.id, true)}" download title="下载原图" aria-label="下载原图">${icon('download')}</a>
     </div></figcaption>
   </figure>`;
@@ -36,6 +37,7 @@ function turnCard(session, turn) {
   const tags = [options.layer_decomposition ? '图层拆分' : references.length ? '图像编辑' : '文字生图', sizeLabel];
   if (!options.layer_decomposition && !options.size) tags.push(options.ratio === 'auto' ? '自动比例' : options.ratio);
   if (turn.markup_id) tags.push('局部标记');
+  if (options.format === 'gif') tags.push('GIF 动图');
   if (options.background === 'transparent' && !options.layer_decomposition) tags.push('透明背景');
   const referenceHTML = references.map((id, index) => `<button data-view="${esc(id)}" aria-label="查看参考图 ${index + 1}"><img src="${assetURL(session.id, id)}" alt="参考图 ${index + 1}"><span>图 ${index + 1}</span></button>`).join('');
   const progress = turn.status === 'running' ? `<div class="generation-progress"><span class="spinner"></span><div>${options.layer_decomposition ? '正在拆解图层' : '正在把灵感变成画面'}<small>${options.layer_decomposition ? '图层完成后会逐张保存' : `已完成 ${turn.completed} / ${options.count} 张`} · 可以切换任务，结果会留在这里</small></div></div>` : '';

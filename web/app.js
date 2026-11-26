@@ -30,6 +30,7 @@ function options() {
     watermark: !isOpenAI() && $('watermark').checked, layer_decomposition: state.layerMode,
     max_images: Number($('max-images').value), text_recognition: $('text-recognition').checked,
     ...(isOpenAI() ? { size: selectedImageSize(), quality: $('quality').value, complexity: $('complexity').value } : {}),
+    ...(isOpenAI() && $('format').value === 'gif' ? { frame_count: Number($('frame-count').value), frame_duration_ms: Number($('frame-duration').value) } : {}),
   };
 }
 
@@ -38,14 +39,17 @@ function applyOptions(value = {}) {
   $('count').value = value.count || 1;
   $('resolution').value = value.resolution || 'auto';
   $('ratio').value = value.ratio || 'auto';
-  $('background').value = value.background || 'auto';
   $('format').value = value.format || 'png';
+  syncModelOptions(isOpenAI(), state.layerMode);
+  $('background').value = value.background || 'auto';
   $('watermark').checked = value.watermark || false;
   $('max-images').value = value.max_images || 30;
   $('text-recognition').checked = value.text_recognition ?? true;
   restoreImageSize(value.size);
   $('quality').value = value.quality || 'auto';
   $('complexity').value = value.complexity || '';
+  $('frame-count').value = value.frame_count || 9;
+  $('frame-duration').value = value.frame_duration_ms || 200;
   setLayerMode(value.layer_decomposition || false);
 }
 
@@ -76,11 +80,13 @@ function updateControls() {
   const configured = state.models.find(model => model.id === $('model').value)?.has_key;
   const previousOutputs = state.session?.turns.at(-1)?.outputs || [];
   const hasPreviousImage = previousOutputs.some(output => state.references.includes(output.asset_id));
+  const previousGIF = isOpenAI() && previousOutputs.some(output => state.session.assets.find(asset => asset.id === output.asset_id)?.mime === 'image/gif');
   $('composer-hint').textContent = !configured ? '首次使用，请在右上角配置 API Key'
     : state.layerMode ? '选择 1 张 PNG / JPEG 原图 · 支持文字 OCR'
     : state.references.length > referenceLimit() ? `已加入 ${state.references.length} 张图，当前模型最多使用 ${referenceLimit()} 张，请移除不需要的参考图`
     : hasPreviousImage ? `${state.references.length} 张参考图 · 已带入上一轮图片，可直接输入修改要求`
     : state.references.length ? `${state.references.length} 张参考图 · ${isOpenAI() ? '图 1 可添加局部标记' : '点击缩略图可局部编辑'}`
+    : previousGIF ? 'GIF 已保存；OpenAI 参考图需为 PNG / JPEG / WebP，可使用上一轮指令重新生成'
     : isOpenAI() ? 'PNG / JPEG / WebP · 最多 16 张参考图' : '支持拖入或粘贴参考图';
 }
 
@@ -96,8 +102,8 @@ function restoreDraft(id) {
   $('prompt').value = draft?.prompt || '';
   state.references = draft?.references || [];
   state.referenceTurnID = draft?.referenceTurnID || '';
-  carryPreviousImages();
   if (draft?.model && state.models.some(model => model.id === draft.model)) $('model').value = draft.model;
+  carryPreviousImages();
   state.markupID = isOpenAI() ? draft?.markupID || '' : '';
   applyOptions(draft?.options);
   renderAttachments(state.session, state.references);
@@ -109,7 +115,8 @@ function carryPreviousImages() {
   const previous = state.session?.turns.at(-1);
   if (!previous || previous.status === 'running' || state.referenceTurnID === previous.id) return false;
   state.referenceTurnID = previous.id;
-  state.references = [...new Set([...state.references, ...previous.outputs.map(output => output.asset_id)])];
+  const images = previous.outputs.filter(output => !isOpenAI() || state.session.assets.find(asset => asset.id === output.asset_id)?.mime !== 'image/gif');
+  state.references = [...new Set([...state.references, ...images.map(output => output.asset_id)])];
   return true;
 }
 
@@ -450,6 +457,7 @@ $('model').onchange = () => {
   setLayerMode(state.layerMode);
 };
 $('image-size').onchange = updateControls;
+$('format').onchange = updateControls;
 $('remove-markup').onclick = () => { state.markupID = ''; updateControls(); };
 $('stop-button').onclick = async () => {
   try {

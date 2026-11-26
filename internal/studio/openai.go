@@ -39,13 +39,13 @@ func validateOpenAIInput(input *GenerationInput) error {
 	if options.Watermark {
 		return fmt.Errorf("OpenAI Images 没有 Seedream 的水印开关，请关闭此选项")
 	}
-	if !slices.Contains([]string{"png", "jpeg", "webp"}, options.Format) {
-		return fmt.Errorf("OpenAI 图片输出请选择 PNG、JPEG 或 WebP")
+	if !slices.Contains([]string{"png", "jpeg", "webp", "gif"}, options.Format) {
+		return fmt.Errorf("OpenAI 图片输出请选择 PNG、JPEG、WebP 或 GIF")
 	}
 	if !slices.Contains([]string{"auto", "opaque", "transparent"}, options.Background) {
 		return fmt.Errorf("背景应为自动、不透明或透明")
 	}
-	if options.Background == "transparent" && options.Format == "jpeg" {
+	if options.Background == "transparent" && options.Format != "png" && options.Format != "webp" {
 		return fmt.Errorf("透明背景需要选择 PNG 或 WebP")
 	}
 	if !slices.Contains([]string{"auto", "low", "medium", "high", "xhigh", "max"}, options.Quality) {
@@ -54,7 +54,38 @@ func validateOpenAIInput(input *GenerationInput) error {
 	if !slices.Contains([]string{"", "low", "medium", "high"}, options.Complexity) {
 		return fmt.Errorf("复杂度应为默认、低、中或高")
 	}
+	if options.Format == "gif" {
+		return validateOpenAIGIF(options)
+	}
 	return validateOpenAISize(options.Size)
+}
+
+func validateOpenAIGIF(options *Options) error {
+	if options.FrameCount == 0 {
+		options.FrameCount = 9
+	}
+	if options.FrameDurationMS == 0 {
+		options.FrameDurationMS = 200
+	}
+	if options.FrameCount < 2 || options.FrameCount > 16 {
+		return fmt.Errorf("GIF 帧数需为 2–16 帧")
+	}
+	if options.FrameDurationMS < 20 {
+		return fmt.Errorf("GIF 每帧时长至少为 20 毫秒")
+	}
+	if options.Size == "auto" {
+		return nil
+	}
+	parts := strings.Split(options.Size, "x")
+	if len(parts) != 2 {
+		return fmt.Errorf("GIF 尺寸应为自动或宽x高，例如 512x512")
+	}
+	width, errW := strconv.Atoi(parts[0])
+	height, errH := strconv.Atoi(parts[1])
+	if errW != nil || errH != nil || width <= 0 || height <= 0 || width%16 != 0 || height%16 != 0 {
+		return fmt.Errorf("GIF 每帧宽高需为 16 的正整数倍")
+	}
+	return nil
 }
 
 func validateOpenAISize(size string) error {
@@ -130,12 +161,16 @@ func (a *App) openAIRequest(session *Session, input GenerationInput, model Model
 	if err != nil {
 		return generationRequest{}, err
 	}
-	fields := map[string]string{
+	fields := map[string]any{
 		"model": model.ModelName, "prompt": input.Prompt, "size": input.Options.Size,
 		"quality": input.Options.Quality, "output_format": input.Options.Format, "background": input.Options.Background,
 	}
 	if input.Options.Complexity != "" {
 		fields["complexity"] = input.Options.Complexity
+	}
+	if input.Options.Format == "gif" {
+		fields["frame_count"] = input.Options.FrameCount
+		fields["frame_duration_ms"] = input.Options.FrameDurationMS
 	}
 	if len(input.ReferenceIDs) == 0 {
 		body, err := json.Marshal(fields)
@@ -144,7 +179,7 @@ func (a *App) openAIRequest(session *Session, input GenerationInput, model Model
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	for key, value := range fields {
-		if err := writer.WriteField(key, value); err != nil {
+		if err := writer.WriteField(key, fmt.Sprint(value)); err != nil {
 			return generationRequest{}, err
 		}
 	}

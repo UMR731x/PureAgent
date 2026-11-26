@@ -46,6 +46,8 @@ type Options struct {
 	Size               string `json:"size,omitempty"`
 	Quality            string `json:"quality,omitempty"`
 	Complexity         string `json:"complexity,omitempty"`
+	FrameCount         int    `json:"frame_count,omitempty"`
+	FrameDurationMS    int    `json:"frame_duration_ms,omitempty"`
 }
 
 type GenerationInput struct {

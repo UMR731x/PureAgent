@@ -42,7 +42,7 @@ func testOpenAIImages(t *testing.T, references int) {
 		if fields["model"] != "gpt-image-2.6-flare" || fields["prompt"] != prompt || fields["size"] != "auto" || fields["quality"] != "xhigh" || fields["complexity"] != "low" {
 			t.Errorf("OpenAI parameters were changed: %+v", fields)
 		}
-		for _, name := range []string{"response_format", "watermark", "layer_decomposition", "input_fidelity", "system", "messages"} {
+		for _, name := range []string{"response_format", "watermark", "layer_decomposition", "input_fidelity", "system", "messages", "frame_count", "frame_duration_ms"} {
 			if _, exists := fields[name]; exists {
 				t.Errorf("unsupported field reached OpenAI: %s", name)
 			}
@@ -70,6 +70,7 @@ func testOpenAIImages(t *testing.T, references int) {
 	configureOpenAI(t, app, provider.URL+"/v1/images/generations")
 	session, input := openAIInput(t, app, references, original, markup)
 	input.Prompt, input.Options.Count = prompt, 2
+	input.Options.FrameCount, input.Options.FrameDurationMS = 9, 200
 	response := localRequest(t, app, "POST", "/api/sessions/"+session.ID+"/turns", input)
 	if response.Code != http.StatusAccepted {
 		t.Fatal(response.Body.String())

@@ -89,15 +89,19 @@ Seedream 的自动比例和分辨率使用 API 的真实语义，不发送该生
 | --- | --- |
 | 生成与编辑 | 纯文本使用 JSON `/images/generations`；有参考图时使用 multipart `/images/edits`，通过 `image[]` 上传原始文件。读取返回的 `b64_json` 并保存为原图。 |
 | 生成数量 | 默认 1，多张任务逐张调用；发生错误时保留已完成结果。 |
-| 尺寸 | 默认 `auto`；提供常用横竖比例与自定义宽高。宽高须为 16 的倍数、单边不超过 3840 像素、比例在 1:3 至 3:1、总像素为 655,360–8,294,400。 |
+| 静态图尺寸 | 默认 `auto`；提供常用横竖比例与自定义宽高。宽高须为 16 的倍数、单边不超过 3840 像素、比例在 1:3 至 3:1、总像素为 655,360–8,294,400。 |
 | 参考图 | 最多 16 张 PNG、JPEG 或 WebP，每张小于 50 MiB。 |
 | 局部编辑 | 点选或框选生成透明 PNG `markup`，独立于原图发送，仅作用于第一张参考图；可以移除或重新选区。底图和标记图均不超过 16,777,216 像素。 |
-| 背景与格式 | 自动、不透明、透明；PNG、JPEG、WebP。透明背景使用 PNG 或 WebP。 |
+| 背景与格式 | 自动、不透明、透明；PNG、JPEG、WebP、GIF。透明背景使用 PNG 或 WebP。 |
+| GIF 动图 | 在更多生成选项中选择 GIF，支持文字生成动画或用静态参考图引导动画。帧数为 2–16，默认 9；每帧时长至少 20 ms，默认 200 ms，由 API 按 10 ms 取整。动画数量沿用生成数量选项。 |
+| GIF 尺寸 | 默认 `auto`，也可选择 512 × 512 等预设或自定义宽高；宽高为 16 的正整数倍。具体尺寸与总帧像素预算由模型校验，不套用静态图的最小像素限制。 |
 | 质量 | `auto`、`low`、`medium`、`high`、`xhigh`、`max`。 |
 | 复杂度 | 模型默认（不传参数）、`low`、`medium`、`high`。 |
 | 能力差异 | 不提供 Seedream 的图层拆分、结构化 OCR 和水印开关，不发送这些字段或 `response_format`。 |
 
-本次接入覆盖静态图片生成与编辑。SVG、GIF、流式输出未接入。已使用模拟接口验证请求协议、参考原图与局部标记、批次生成、错误显示和会话保存；尚未使用 OpenAI 真实密钥验证出图效果。
+GIF 需要账户具备对应模型的 GIF 预览权限。结果在工作台和查看器中直接播放，保存和下载均保留完整动画；复制按钮复制首帧为 PNG。OpenAI 参考图仍需为 PNG、JPEG 或 WebP，因此 GIF 输出不会自动作为下一轮附件；可点击“使用此指令”恢复提示词、静态参考图和动画参数。
+
+本次接入覆盖静态图片生成与编辑、GIF 动画生成。SVG、流式输出未接入。已使用模拟接口验证请求协议、参考原图与局部标记、批次生成、GIF 原始字节保存与下载、错误显示和会话保存；尚未使用 OpenAI 真实密钥验证出图效果。
 
 依据：[图像生成指南](https://developers.openai.com/api/docs/guides/image-generation)、[图像提示与标记编辑](https://developers.openai.com/api/docs/guides/image-prompting)、[生成 API](https://developers.openai.com/api/reference/resources/images/methods/generate)、[编辑 API](https://developers.openai.com/api/reference/resources/images/methods/edit)。
 
