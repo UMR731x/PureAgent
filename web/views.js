@@ -1,21 +1,6 @@
 import { $, escapeHTML as esc, assetURL } from './api.js';
 import { icon } from './icons.js';
 
-export function renderHistory(sessions, activeID) {
-  $('session-count').textContent = sessions.length;
-  if (!sessions.length) {
-    $('history').innerHTML = `<div class="history-empty">${icon('images')}<div>这里会收好<br>你的每一次灵感</div></div>`;
-    return;
-  }
-  let previousGroup = '';
-  $('history').innerHTML = sessions.map(session => {
-    const group = new Date(session.updated_at).toDateString() === new Date().toDateString() ? '今天' : '更早的创作';
-    const heading = group !== previousGroup ? `<div class="history-group">${group}</div>` : '';
-    previousGroup = group;
-    return `${heading}<button class="history-item ${session.id === activeID ? 'active' : ''}" data-session="${esc(session.id)}" title="${esc(session.title)}">${icon('image')}<span>${esc(session.title)}</span>${session.running ? '<i class="running-dot"></i>' : ''}</button>`;
-  }).join('');
-}
-
 function imageCard(session, output) {
   const asset = session.assets.find(item => item.id === output.asset_id);
   if (!asset) return '';

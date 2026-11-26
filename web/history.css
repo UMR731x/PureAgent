@@ -1,0 +1,40 @@
+.history-heading { gap: 8px; padding-right: 6px; }
+.history-heading .text-button { padding: 6px 8px; border-radius: 7px; font-size: 13px; }
+.history-heading .text-button:hover:not(:disabled) { background: #e5ebdc; }
+.history-row { display: flex; align-items: center; border-radius: 9px; margin-bottom: 4px; }
+.history-row.selected { background: #e1e9d8; }
+.history-remove { width: 30px; height: 30px; margin-right: 5px; opacity: 0; }
+.history-row:hover .history-remove, .history-row:focus-within .history-remove { opacity: 1; }
+.history-remove:hover:not(:disabled) { background: #f5e7e1; color: var(--red); }
+.history-row:hover .history-remove:disabled { opacity: .35; }
+.history-choice { cursor: pointer; margin: 0; }
+.history-choice:has(input:disabled) { cursor: default; opacity: .6; }
+.history-selection { padding: 10px; border: 1px solid #d8e0d0; border-radius: 10px; background: #fafbf7; margin: 0 2px 4px; font-size: 13px; }
+.history-selection > div, .history-selection label { display: flex; align-items: center; gap: 8px; }
+.history-selection > div { justify-content: space-between; }
+.history-selection label { cursor: pointer; }
+.history-selection span { color: var(--muted); }
+.history-selection input:indeterminate { background: var(--green); border-color: var(--green); }
+.history-selection input:indeterminate::after { content: ''; width: 8px; height: 2px; background: #fff; }
+.history-delete-selected { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 12px; padding: 8px; border-radius: 7px; color: var(--red); background: #f7eeea; }
+.history-delete-selected:hover:not(:disabled) { background: #f1e2db; }
+.history-delete-selected svg { width: 15px; height: 15px; }
+.history-running-note { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 6px 12px; }
+.history-delete-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 28px; border: 1px solid var(--line); border-radius: 18px; color: var(--ink); background: var(--canvas); box-shadow: 0 20px 80px #23301c25; }
+.history-delete-dialog::backdrop { background: #27332155; backdrop-filter: blur(4px); }
+.history-delete-emblem { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; color: var(--red); background: #f5e8e2; }
+.history-delete-emblem svg { width: 23px; height: 23px; }
+.history-delete-dialog h2 { font-size: 20px; font-weight: 600; margin: 20px 0 10px; }
+.history-delete-dialog p { color: #7a8573; font-size: 14px; line-height: 1.8; margin: 0 0 18px; }
+.history-delete-list { margin: 0; padding: 5px 14px; list-style: none; max-height: 180px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; scrollbar-width: thin; }
+.history-delete-list li { padding: 10px 0; font-size: 14px; overflow-wrap: anywhere; }
+.history-delete-list li + li { border-top: 1px solid var(--line); }
+.history-delete-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.history-delete-actions button { padding: 11px 16px; border-radius: 9px; font-size: 14px; }
+.history-delete-actions .subtle-button { border: 1px solid var(--line); background: #fff; }
+.history-delete-confirm { background: var(--red); color: #fff; }
+.history-delete-confirm:hover:not(:disabled) { background: #94463d; }
+.history-delete-error { color: var(--red); font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 16px; }
+@media (hover: none) {
+  .history-remove { opacity: .7; }
+}

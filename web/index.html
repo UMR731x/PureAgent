@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/controls.css">
   <link rel="stylesheet" href="/usage.css">
+  <link rel="stylesheet" href="/history.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -17,7 +18,12 @@
     <aside class="sidebar" id="sidebar" aria-label="任务导航">
       <a class="brand" href="/" aria-label="PureAgent 首页"><img class="brand-icon" src="/icon.png" alt=""><span>PureAgent<small>IMAGE STUDIO</small></span></a>
       <button class="new-task" id="new-task"><span data-icon="plus"></span>新建任务<span class="key-hint">N</span></button>
-      <div class="history-heading"><span>你的创作</span><span id="session-count">0</span></div>
+      <div class="history-heading"><span>你的创作 <span id="session-count">0</span></span><button type="button" class="text-button" id="history-manage" aria-pressed="false">管理</button></div>
+      <div class="history-selection" id="history-selection" hidden>
+        <div><label><input type="checkbox" id="history-select-all">全选</label><span id="history-selected-count" aria-live="polite">已选 0 项</span></div>
+        <button type="button" class="history-delete-selected" id="history-delete-selected" disabled><span data-icon="trash"></span>删除所选</button>
+      </div>
+      <p class="history-running-note" id="history-running-note" hidden>生成中的任务需先停止再删除</p>
       <nav id="history" class="history" aria-label="历史任务"></nav>
       <div class="update-area">
         <button type="button" class="update-button" id="update-button"><span data-icon="download"></span><span><strong id="update-label">检查并更新</strong><small id="app-version">PureAgent</small></span><span data-icon="arrow-right"></span></button>
@@ -103,6 +109,15 @@
       <div class="settings-bottom"><button class="primary-button" type="submit" id="save-settings">保存配置<span data-icon="check"></span></button></div>
     </form>
   </aside>
+
+  <dialog id="history-delete-dialog" class="history-delete-dialog" aria-labelledby="history-delete-title" aria-describedby="history-delete-description">
+    <div class="history-delete-emblem"><span data-icon="trash"></span></div>
+    <h2 id="history-delete-title">删除历史会话？</h2>
+    <p id="history-delete-description">会话记录、上传图片和生成图片将从本机永久删除，无法恢复。</p>
+    <ul id="history-delete-list" class="history-delete-list" aria-label="将删除的会话"></ul>
+    <div id="history-delete-error" class="history-delete-error" role="alert" hidden></div>
+    <div class="history-delete-actions"><button type="button" class="subtle-button" id="history-delete-cancel" autofocus>取消</button><button type="button" class="history-delete-confirm" id="history-delete-confirm">删除会话</button></div>
+  </dialog>
 
   <dialog id="usage-dialog" class="usage-dialog" aria-labelledby="usage-title">
     <div class="usage-heading"><div><div class="eyebrow">USAGE & QUOTA</div><h2 id="usage-title">用量与额度</h2></div><button class="icon-button" id="usage-close" aria-label="关闭额度查询"><span data-icon="x"></span></button></div>

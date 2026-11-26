@@ -68,6 +68,7 @@ func (a *App) Handler(frontend fs.FS, updates http.Handler) http.Handler {
 	mux.HandleFunc("PUT /api/models/{model}/usage", a.putUsageCredentials)
 	mux.HandleFunc("GET /api/sessions", a.listSessions)
 	mux.HandleFunc("POST /api/sessions", a.createSession)
+	mux.HandleFunc("DELETE /api/sessions", a.deleteSessions)
 	mux.HandleFunc("GET /api/sessions/{session}", a.getSession)
 	mux.HandleFunc("POST /api/sessions/{session}/assets", a.upload)
 	mux.HandleFunc("GET /api/sessions/{session}/assets/{asset}", a.serveAsset)

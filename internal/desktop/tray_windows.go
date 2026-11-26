@@ -17,6 +17,7 @@ type trayWindow struct {
 	window       uintptr
 	icon         notificationIcon
 	taskbarReady uint32
+	menu         *trayMenu
 }
 
 func wide(value string) *uint16 { return syscall.StringToUTF16Ptr(value) }
@@ -63,6 +64,9 @@ func Start(options Options) (func(), error) {
 }
 
 func (tray *trayWindow) run(ready chan<- error) {
+	// Keep menu text and line icons sharp when the taskbar is on a scaled display.
+	previousDPI, _, _ := setThreadDPI.Call(^uintptr(3)) // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+	defer setThreadDPI.Call(previousDPI)
 	instance, _, _ := getModuleHandle.Call(0)
 	class := windowClass{Size: uint32(unsafe.Sizeof(windowClass{})), Instance: instance,
 		ClassName: wide(trayClass), Callback: syscall.NewCallback(tray.dispatch)}
@@ -128,6 +132,16 @@ func (tray *trayWindow) dispatch(window uintptr, message uint32, wParam, lParam 
 		tray.open(tray.options.URL)
 	case windowCommand:
 		tray.command(wParam & 0xffff)
+	case 0x002c: // WM_MEASUREITEM
+		if tray.menu != nil {
+			tray.menu.measure(lParam)
+			return 1
+		}
+	case 0x002b: // WM_DRAWITEM
+		if tray.menu != nil {
+			tray.menu.draw(lParam)
+			return 1
+		}
 	case trayCallback:
 		switch lParam & 0xffff {
 		case 0x0400, 0x0401: // NIN_SELECT, NIN_KEYSELECT
@@ -148,25 +162,6 @@ func (tray *trayWindow) dispatch(window uintptr, message uint32, wParam, lParam 
 		}
 	}
 	return 0
-}
-
-func (tray *trayWindow) showMenu() {
-	menu, _, _ := createPopupMenu.Call()
-	defer destroyMenu.Call(menu)
-	for _, item := range []struct {
-		id    uintptr
-		label string
-	}{{menuWorkspace, "打开工作台"}, {menuDirectory, "打开数据目录"}, {menuCopyURL, "复制访问地址"}} {
-		appendMenu.Call(menu, 0, item.id, uintptr(unsafe.Pointer(wide(item.label))))
-	}
-	appendMenu.Call(menu, 0x800, 0, 0) // MF_SEPARATOR
-	appendMenu.Call(menu, 0, menuExit, uintptr(unsafe.Pointer(wide("退出 PureAgent"))))
-	var cursor point
-	getCursorPosition.Call(uintptr(unsafe.Pointer(&cursor)))
-	setForegroundWindow.Call(tray.window)
-	selected, _, _ := trackPopupMenu.Call(menu, 0x0102, uintptr(cursor.X), uintptr(cursor.Y), 0, tray.window, 0)
-	postMessage.Call(tray.window, 0, 0, 0) // Complete the notification-area menu interaction.
-	tray.command(selected)
 }
 
 func (tray *trayWindow) command(command uintptr) {

@@ -38,16 +38,17 @@ svg.icon { width: 20px; height: 20px; flex-shrink: 0; vertical-align: middle; }
 .new-task:hover { background: #dce5d0; transform: translateY(-1px); }
 .key-hint { margin-left: auto; font-size: 12px; border: 1px solid #cbd5c0; color: #7e8c72; width: 19px; padding: 2px; border-radius: 4px; }
 .history-heading { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #899180; padding: 0 13px 16px; }
-.history-heading > span:last-child { font-size: 12px; }
+.history-heading #session-count { font-size: 12px; margin-left: 6px; }
 .history { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .history-empty { padding: 38px 20px; text-align: center; color: #9ba390; font-size: 14px; line-height: 1.9; }
 .history-empty svg { margin-bottom: 8px; opacity: .65; }
 .history-group { font-size: 12px; color: #9ba38e; padding: 16px 14px 8px; }
-.history-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border-radius: 9px; color: #6b7467; text-align: left; font-size: 14px; margin-bottom: 4px; }
+.history-item { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 12px; border-radius: 9px; color: #6b7467; text-align: left; font-size: 14px; }
 .history-item svg { width: 16px; height: 16px; opacity: .7; }
 .history-item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-item:hover { background: #e7ebdf; }
-.history-item.active { background: #fff; color: var(--green-dark); box-shadow: 0 2px 8px #34402b05; }
+.history-row:hover { background: #e7ebdf; }
+.history-row.active { background: #fff; box-shadow: 0 2px 8px #34402b05; }
+.history-row.active .history-item { color: var(--green-dark); }
 .running-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; margin-left: auto; flex-shrink: 0; animation: pulse 1.5s infinite; }
 .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 19px 8px 2px; margin-top: 20px; border-top: 1px solid #dde2d6; font-size: 13px; }
 .sidebar-footer small { display: flex; align-items: center; gap: 5px; margin-top: 6px; color: #8b9582; font-size: 12px; }

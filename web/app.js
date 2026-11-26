@@ -1,12 +1,13 @@
 import { $, api, toast, showError } from './api.js';
 import { hydrateIcons } from './icons.js';
-import { renderHistory, renderConversation, renderAttachments, renderModels, modelConfigCard } from './views.js';
+import { renderConversation, renderAttachments, renderModels, modelConfigCard } from './views.js';
 import { createViewer, copyImage } from './viewer.js';
 import { initializeControls, refreshControls } from './controls.js';
 import { initializeUpdates } from './updates.js';
 import { syncModelOptions, selectedImageSize, restoreImageSize } from './model-options.js';
 import { createEditMarkup } from './markup.js';
 import { initializeUsage } from './usage.js';
+import { HistoryView } from './history.js';
 
 hydrateIcons();
 initializeControls();
@@ -16,6 +17,7 @@ const state = { session: null, sessions: [], models: [], references: [], referen
 const drafts = new Map();
 let pollTimer;
 let navigationVersion = 0;
+const historyView = new HistoryView(state, { onOpen: openSession, onDelete: deleteHistory });
 
 function isOpenAI() { return state.models.find(model => model.id === $('model').value)?.provider === 'openai'; }
 function referenceLimit() { return isOpenAI() ? 16 : 10; }
@@ -112,8 +114,37 @@ function carryPreviousImages() {
 }
 
 async function refreshHistory() {
-  state.sessions = await api('/sessions');
-  renderHistory(state.sessions, state.session?.id);
+  const version = navigationVersion;
+  const sessions = await api('/sessions');
+  if (version !== navigationVersion) return;
+  state.sessions = sessions;
+  historyView.render();
+}
+
+async function deleteHistory(ids) {
+  if (state.busy) throw new Error('图片正在保存，请稍后删除任务');
+  state.busy = true;
+  ++navigationVersion;
+  clearTimeout(pollTimer);
+  updateControls();
+  try {
+    const result = await api('/sessions', { method: 'DELETE', body: { ids } });
+    const deleted = new Set(result.deleted);
+    for (const id of deleted) drafts.delete(id);
+    state.sessions = state.sessions.filter(session => !deleted.has(session.id));
+    if (deleted.has(state.session?.id)) {
+      state.session = null;
+      history.replaceState(null, '', '/');
+      restoreDraft(null);
+      renderConversation(null, true);
+    }
+    historyView.render();
+    return result;
+  } finally {
+    state.busy = false;
+    updateControls();
+    schedulePoll();
+  }
 }
 
 function schedulePoll() {
@@ -121,10 +152,11 @@ function schedulePoll() {
   const currentRunning = state.session?.turns.some(turn => turn.status === 'running');
   if (!currentRunning && !state.sessions.some(session => session.running)) return;
   pollTimer = setTimeout(async () => {
+    const version = navigationVersion;
     try {
-      const version = navigationVersion;
       const currentID = state.session?.id;
       await refreshHistory();
+      if (version !== navigationVersion) return;
       if (currentID) {
         const session = await api(`/sessions/${currentID}`);
         if (version === navigationVersion) {
@@ -134,9 +166,9 @@ function schedulePoll() {
           updateControls();
         }
       }
-      schedulePoll();
+      if (version === navigationVersion) schedulePoll();
     } catch (error) {
-      toast(`暂时无法读取生成进度：${error.message}。刷新页面可重新查看。`, true);
+      if (version === navigationVersion) toast(`暂时无法读取生成进度：${error.message}。刷新页面可重新查看。`, true);
     }
   }, 1000);
 }
@@ -152,10 +184,11 @@ async function openSession(id) {
     history.replaceState(null, '', id ? `/?session=${encodeURIComponent(id)}` : '/');
     restoreDraft(id);
     renderConversation(session, true);
-    renderHistory(state.sessions, id);
+    historyView.render();
     $('sidebar').classList.remove('open');
     $('prompt').focus();
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { if (version === navigationVersion) toast(error.message, true); }
+  finally { if (version === navigationVersion) schedulePoll(); }
 }
 
 async function ensureSession() {
@@ -381,10 +414,6 @@ function handleImageAction(event) {
 $('composer').addEventListener('submit', generate);
 $('prompt').addEventListener('input', resizePrompt);
 $('new-task').onclick = () => openSession(null);
-$('history').onclick = event => {
-  const button = event.target.closest('[data-session]');
-  if (button) openSession(button.dataset.session);
-};
 $('conversation').addEventListener('click', handleImageAction);
 $('attachments').addEventListener('click', event => {
   handleImageAction(event);
@@ -444,7 +473,7 @@ $('model-configs').onclick = event => {
 };
 $('menu-button').onclick = () => $('sidebar').classList.toggle('open');
 document.addEventListener('click', event => {
-  if (!event.target.closest('#sidebar, #menu-button')) $('sidebar').classList.remove('open');
+  if (!event.target.closest('#sidebar, #menu-button, #history-delete-dialog')) $('sidebar').classList.remove('open');
 });
 
 document.addEventListener('keydown', event => {
@@ -490,7 +519,7 @@ async function initialize() {
     state.models = config.models;
     state.sessions = sessions;
     renderModels(state.models, localStorage.getItem('pureagent-model'));
-    renderHistory(sessions);
+    historyView.render();
     const selected = new URLSearchParams(location.search).get('session');
     if (selected) await openSession(selected);
     else updateControls();

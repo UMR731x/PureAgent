@@ -117,6 +117,14 @@ func (s *Store) createSession() (*Session, error) {
 	return session, s.saveSession(session)
 }
 
+func (s *Store) deleteSession(id string) error {
+	directory, err := s.sessionPath(id)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(directory)
+}
+
 func (s *Store) sessions() ([]SessionSummary, error) {
 	entries, err := os.ReadDir(filepath.Join(s.directory, "sessions"))
 	if err != nil {
