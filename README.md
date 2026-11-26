@@ -5,7 +5,9 @@
 
 ## 启动
 
-Windows：在 [GitHub Release](https://github.com/UMR731x/PureAgent/releases/latest) 下载 `PureAgent-windows-amd64.zip`，解压后双击 `start.cmd`，然后打开 **http://127.0.0.1:57123**。首次启动需保留终端窗口。从源码克隆的项目需先按下方命令构建。
+Windows：在 [GitHub Release](https://github.com/UMR731x/PureAgent/releases/latest) 下载 `PureAgent-windows-amd64.zip`，解压后双击 `bin/PureAgent.exe`，自动在默认浏览器中打开 **http://127.0.0.1:57123**，不显示控制台。通知区域显示软件图标，单击打开工作台；右键菜单提供“打开工作台”“打开数据目录”“复制访问地址”“退出 PureAgent”。退出会结束后台进程并释放端口，关闭浏览器页面则继续后台运行。重复启动同一端口会打开已有工作台。从源码克隆的项目需先按下方命令构建。
+
+Windows Release 默认使用安装目录中的 `data`：客户端位于 `bin` 内时使用 `bin` 上一级的 `data`；单文件客户端使用自身所在目录的 `data`。显式 `-data` 参数仍按启动时的工作目录解析。
 
 Linux：下载 Release 中的 `PureAgent-linux-amd64.tar.gz`，解压后在该目录运行 `./bin/pureagent`。
 
@@ -25,7 +27,7 @@ go build -buildvcs=false -o bin/pureagent .
 Windows 构建：
 
 ```powershell
-go build -buildvcs=false -o bin/PureAgent.exe .
+go build -buildvcs=false -ldflags "-H=windowsgui" -o bin/PureAgent.exe .
 .\start.cmd
 ```
 
@@ -58,7 +60,7 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 
 左下角“检查并更新”会读取本仓库最新正式 Release，下载匹配当前系统的客户端并校验下载完整性。已有生成任务会先完成，随后自动替换客户端、重启并恢复页面；新版本正常启动后删除旧客户端和临时更新文件，启动失败则恢复原版本并显示错误。
 
-更新只替换运行中的可执行文件，保留原工作目录、端口和 `-data` 参数；配置、会话 JSON、上传原图和生成结果不会被迁移或删除。自动重启后的服务在后台运行，浏览器中的当前任务和未提交输入会保留。请勿在更新过程中移动安装目录。
+更新只替换运行中的可执行文件，保留原工作目录、端口和实际使用的数据目录；配置、会话 JSON、上传原图和生成结果不会被迁移或删除。自动重启后保留托盘、恢复页面中的当前任务和未提交输入，不额外打开浏览器标签页。请勿在更新过程中移动安装目录。
 
 没有更新入口的旧客户端需要先手动替换一次 `bin` 中对应文件，保留 `data`。源码开发构建显示 `dev`，不会自行替换源码运行产生的临时程序；一键更新适用于 Release 客户端。
 
@@ -67,7 +69,7 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 1. 右上角“模型设置”中选择接口类型并保存配置。旧配置仍按 Seedream 处理。同一接口类型的已有密钥留空时保持原值；切换接口类型需填写对应密钥，界面不会回传已保存的密钥。
 2. 输入描述，选择模型与生成参数。点击“生成”，或按 `Ctrl/⌘ + Enter`。
 3. 参考图可通过附件按钮、拖入或粘贴上传；输入框上方的顺序对应“图 1、图 2”等编号。
-4. 点击生成结果查看原图；“编辑”把选中图片作为参考图，再输入本轮修改要求。每次编辑都保存新结果。
+4. 每轮结束后，其输出图片自动加入输入框附件；继续输入修改要求即可连续编辑。也可移除不需要的图片，或点击某张结果的“编辑”指定参考图。打开历史任务时带入最近一轮的输出；新任务不继承其他任务的图片。每次编辑都保存新结果。
 5. “局部编辑”支持点选与框选。Seedream 将 `<point>` / `<bbox>` 坐标插入输入框；OpenAI 为第一张参考图创建独立的透明 PNG 标记，并填入可修改的编辑指令。原图始终保留原始字节。
 6. “更多生成选项”按接口显示能力：Seedream 提供背景、PNG/JPEG、水印与图层拆分；OpenAI 提供背景、PNG/JPEG/WebP、质量与复杂度。Seedream 拆分只使用一张 PNG/JPEG，可填写拆分要求，也可留空让模型识别。
 7. 拆分结果逐层保存。打开文字图层可查看、复制 OCR 文本，以及位置和文字样式；各图层也可继续交给模型编辑。
@@ -88,7 +90,7 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 | 图层拆分 | 最大输出 2–100 张，含底图；默认采用 API 的 30 张。最大数影响接口预扣额度，实际输出数由模型决定。 |
 | OCR | 拆分时可启用。只对模型识别为规整文字的图层返回，字体与样式是模型推断结果。 |
 
-只提交当前输入框内的提示词、选定的参考图与生成选项。不设置系统提示词，不偷偷拼接历史对话。继续修改时选择需要编辑的结果；若需要结合多张图，可以将它们依次加入参考图。
+只提交当前输入框内的提示词、附件中的参考图与生成选项。不设置系统提示词，不拼接历史对话文本。连续编辑自动带入上一轮输出的原图，用户手动移除后不会被轮询重新添加；部分成功的任务仍带入已完成的图片。上一轮没有输出时不回退到更早的图片。若拆分结果超过模型参考图上限，需要从附件中移除多余图片后再生成。
 
 Seedream 的自动比例和分辨率使用 API 的真实语义，不发送该生成接口不支持的 `size: "auto"`。本地页面显示的是任务进度，不是模型的流式生成。
 
@@ -112,11 +114,22 @@ Seedream 的自动比例和分辨率使用 API 的真实语义，不发送该生
 
 依据：[图像生成指南](https://developers.openai.com/api/docs/guides/image-generation)、[图像提示与标记编辑](https://developers.openai.com/api/docs/guides/image-prompting)、[生成 API](https://developers.openai.com/api/reference/resources/images/methods/generate)、[编辑 API](https://developers.openai.com/api/reference/resources/images/methods/edit)。
 
+## 用量与额度
+
+右上角“额度”位于“模型设置”旁边，查询输入框当前选中的模型。“刷新”重新访问官方接口；查询凭据按模型保存在本地 `config.json` 的 `usage` 中，浏览器仅收到是否已保存的标记，模型设置的普通编辑不会覆盖这些凭据。
+
+- **Seedream / AgentPlan**：填写火山引擎 Access Key 与 Secret Key；企业版还需填写 Seat ID。生图 API Key 不能替代 AK/SK。显示适用于图片的近一天、近一月 AFP 已用量、剩余量、总额和重置时间，以及当前模型的本月用量明细。AFP 是套餐或席位的共享额度，不能视为该模型独享或直接换算成图片数；套餐内、套餐外和不同计量单位分别统计。模型明细可能延迟半天至一天。
+- **OpenAI**：填写组织管理员的 Admin API Key，按模型名称查询本月组织内所有项目的图片处理量和请求次数。普通生图 Key 无法查询组织用量；官方没有余额查询 API，因此剩余额度显示说明并链接到官方账单页面。
+
+两类查询均访问对应官方域名，不会将管理凭据发给自定义生图 URL。第三方中转服务没有统一的额度协议，其实际余额需到该服务的控制台查看。查询失败会显示错误；某项数据缺失不会被替换为 0，也不影响生图。已使用模拟接口验证个人版、企业席位、分页、模型筛选和错误显示；真实账户查询仍需对应管理凭据验证。
+
+接口依据：[AgentPlan 套餐额度](https://docs.volcengine.com/docs/ark/get-afp-usage-api?lang=zh)、[模型用量](https://docs.volcengine.com/docs/ark/get-usage-details-api?lang=zh)、[企业席位额度](https://docs.volcengine.com/docs/ark/get-seat-afp-usage-api?lang=zh)、[企业席位用量](https://docs.volcengine.com/docs/ark/get-seat-usage-details-api?lang=zh)、[OpenAI Images Usage](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/images)。
+
 ## 文件保存
 
 ```text
 data/
-  config.json                   # 本地模型配置（包含 API Key）
+  config.json                   # 本地模型配置（包含生图与额度查询凭据）
   sessions/
     <session-id>/
       session.json              # 文本、参数、状态、用量、错误、图层元数据

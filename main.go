@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"pureagent/internal/desktop"
 	"pureagent/internal/studio"
 	"pureagent/internal/update"
 	"pureagent/web"
@@ -27,7 +27,8 @@ func main() {
 		return
 	}
 	if err := run(); err != nil {
-		log.Fatal(err)
+		desktop.ReportError(err)
+		os.Exit(1)
 	}
 }
 
@@ -47,6 +48,24 @@ func run() error {
 	if err := flag.CommandLine.Parse(arguments); err != nil {
 		return err
 	}
+	dataSpecified := false
+	flag.Visit(func(value *flag.Flag) { dataSpecified = dataSpecified || value.Name == "data" })
+	if version != "dev" && restarted == nil && !dataSpecified {
+		var err error
+		*directory, err = desktop.DefaultDataDirectory()
+		if err != nil {
+			return err
+		}
+	}
+	address := fmt.Sprintf("127.0.0.1:%d", *port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		if desktop.Activate("http://" + address) {
+			return nil
+		}
+		return err
+	}
+	defer listener.Close()
 	app, err := studio.New(*directory)
 	if err != nil {
 		return err
@@ -55,7 +74,12 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	restartRequested := make(chan struct{})
-	updater := update.New(ctx, version, arguments, update.Lifecycle{
+	// Preserve the resolved directory even when a desktop launch used a different working directory.
+	restartArguments := append([]string{}, arguments...)
+	if !dataSpecified {
+		restartArguments = append(restartArguments, "-data", app.Directory())
+	}
+	updater := update.New(ctx, version, restartArguments, update.Lifecycle{
 		WaitForJobs: app.WaitForUpdate, ResumeJobs: app.ResumeAfterUpdate,
 		Restart: func() { close(restartRequested) },
 	})
@@ -63,21 +87,33 @@ func run() error {
 		updater.Failure(restarted.Failure)
 	}
 	server := &http.Server{
-		Addr:    fmt.Sprintf("127.0.0.1:%d", *port),
-		Handler: app.Handler(web.Files, updater.Handler()),
+		Addr:        address,
+		Handler:     app.Handler(web.Files, updater.Handler()),
+		BaseContext: func(net.Listener) context.Context { return ctx },
 	}
+	server.RegisterOnShutdown(cancel)
 	fmt.Printf("数据目录：%s\n", app.Directory())
-	return serve(server, restarted, restartRequested, updater.Failure)
+	return serve(server, listener, app.Directory(), restarted, restartRequested, updater.Failure)
 }
 
-func serve(server *http.Server, restarted *update.Restart, restartRequested <-chan struct{}, reportUpdateFailure func(string)) error {
-	listener, err := net.Listen("tcp", server.Addr)
+func serve(server *http.Server, listener net.Listener, directory string, restarted *update.Restart, restartRequested <-chan struct{}, reportUpdateFailure func(string)) error {
+	finished := make(chan error, 1)
+	go func() { finished <- server.Serve(listener) }()
+	defer server.Close()
+	quitRequested := make(chan struct{}, 1)
+	stopDesktop, err := desktop.Start(desktop.Options{
+		URL: "http://" + server.Addr, Directory: directory, Version: version, OpenBrowser: restarted == nil,
+		Exit: func() {
+			select {
+			case quitRequested <- struct{}{}:
+			default:
+			}
+		},
+	})
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
-	finished := make(chan error, 1)
-	go func() { finished <- server.Serve(listener) }()
+	defer stopDesktop()
 	if restarted != nil {
 		if err := restarted.Ready(reportUpdateFailure); err != nil {
 			return err
@@ -89,6 +125,7 @@ func serve(server *http.Server, restarted *update.Restart, restartRequested <-ch
 	fmt.Printf("PureAgent %s · http://%s\n", version, server.Addr)
 	select {
 	case <-signals:
+	case <-quitRequested:
 	case <-restartRequested:
 	case err := <-finished:
 		return err

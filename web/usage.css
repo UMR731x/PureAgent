@@ -1,0 +1,44 @@
+.topbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.usage-dialog { width: min(540px, calc(100vw - 28px)); max-height: 90dvh; padding: 28px; border: 1px solid var(--line); border-radius: 18px; color: var(--ink); background: #fafbf8; box-shadow: 0 24px 90px #1b261a30; scrollbar-width: thin; scrollbar-color: #c4cfbb transparent; }
+.usage-dialog::backdrop { background: #25311d40; backdrop-filter: blur(5px); }
+.usage-heading, .usage-model, .usage-quota > div, .usage-metric { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usage-heading h2 { margin: 8px 0 0; font-size: 24px; font-weight: 500; }
+.usage-model { padding: 18px 0; margin-top: 8px; border-bottom: 1px solid var(--line); }
+.usage-model > svg { width: 22px; color: var(--green); }
+.usage-model > div { flex: 1; min-width: 0; }
+.usage-model strong { font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.usage-model small { display: block; margin-top: 5px; font-size: 13px; color: #7c8b70; overflow-wrap: anywhere; }
+.usage-scope, .usage-notice, .usage-credentials p { font-size: 14px; line-height: 1.75; color: #77866b; }
+.usage-quotas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.usage-quota { padding: 17px; background: #edf3e7; border: 1px solid #dce7d1; border-radius: 12px; }
+.usage-quota h3, .usage-period h3 { font-size: 15px; font-weight: 500; margin: 0; }
+.usage-quota > div > span { font-size: 12px; color: #829271; }
+.usage-quota p { margin: 16px 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.usage-quota strong { font-size: 28px; font-weight: 500; color: #4c6741; overflow-wrap: anywhere; }
+.usage-quota p span { font-size: 13px; color: #7c8b70; }
+.usage-quota small { display: block; font-size: 12px; line-height: 1.7; color: #728563; }
+.usage-track { height: 5px; background: #dbe5cf; border-radius: 4px; overflow: hidden; margin-bottom: 9px; }
+.usage-track span { display: block; height: 100%; background: #8da575; border-radius: inherit; }
+.usage-period { margin: 22px 0 12px; }
+.usage-period small, .usage-checked { display: block; margin-top: 6px; font-size: 12px; line-height: 1.6; color: #829078; }
+.usage-metric { padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.usage-metric strong { font-size: 19px; font-weight: 500; }
+.usage-metric small { font-size: 13px; font-weight: 400; color: #829078; }
+.usage-loading { display: flex; align-items: center; gap: 12px; padding: 20px 0; color: #829078; font-size: 14px; }
+.usage-error { white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; margin-top: 16px; font-size: 14px; line-height: 1.7; color: #a25c4b; background: #fcf1eb; border: 1px solid #ecdcd1; border-radius: 9px; }
+.usage-credentials { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 18px; }
+.usage-credentials summary { cursor: pointer; font-size: 15px; }
+.usage-credentials summary span { font-size: 12px; color: #829078; margin-left: 10px; }
+.usage-credentials label { display: block; margin: 15px 0; font-size: 14px; }
+.usage-credentials input { width: 100%; display: block; padding: 12px; margin-top: 8px; font-size: 14px; border: 1px solid #dce2d3; border-radius: 8px; background: #fff; }
+.usage-credentials .usage-credential-note { font-size: 12px; }
+.usage-credentials .primary-button { width: 100%; }
+.usage-console { display: inline-block; color: var(--green); margin-top: 20px; font-size: 14px; text-decoration: none; }
+.usage-console:hover { text-decoration: underline; }
+@media (max-width: 700px) {
+  .topbar-actions { gap: 5px; }
+  .topbar-actions .settings-trigger { gap: 6px; padding-inline: 8px; }
+  .usage-dialog { padding: 20px; }
+  .usage-quota { padding: 12px; }
+  .usage-quota strong { font-size: 24px; }
+}

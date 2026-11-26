@@ -3,16 +3,19 @@ package studio
 import (
 	"encoding/json"
 	"time"
+
+	"pureagent/internal/usage"
 )
 
 type Model struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	ModelName string `json:"model_name"`
-	Provider  string `json:"provider,omitempty"`
-	URL       string `json:"url"`
-	APIKey    string `json:"api_key,omitempty"`
-	HasKey    bool   `json:"has_key,omitempty"`
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	ModelName string             `json:"model_name"`
+	Provider  string             `json:"provider,omitempty"`
+	URL       string             `json:"url"`
+	APIKey    string             `json:"api_key,omitempty"`
+	HasKey    bool               `json:"has_key,omitempty"`
+	Usage     *usage.Credentials `json:"usage,omitempty"`
 }
 
 type Config struct {

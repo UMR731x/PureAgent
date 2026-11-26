@@ -1,4 +1,5 @@
 const paths = {
+  gauge: '<path d="M4 18a9 9 0 1 1 16 0H4Z"/><path d="m12 13 4-5M6 13h1m10 0h1M12 5v1"/><circle cx="12" cy="13" r="1"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   x: '<path d="m6 6 12 12M6 18 18 6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',

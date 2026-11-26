@@ -64,6 +64,8 @@ func (a *App) Handler(frontend fs.FS, updates http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/config", a.getConfig)
 	mux.HandleFunc("PUT /api/config", a.putConfig)
+	mux.HandleFunc("GET /api/models/{model}/usage", a.getModelUsage)
+	mux.HandleFunc("PUT /api/models/{model}/usage", a.putUsageCredentials)
 	mux.HandleFunc("GET /api/sessions", a.listSessions)
 	mux.HandleFunc("POST /api/sessions", a.createSession)
 	mux.HandleFunc("GET /api/sessions/{session}", a.getSession)
@@ -118,6 +120,10 @@ func redactConfig(config Config) Config {
 	models := make([]Model, len(config.Models))
 	for i, model := range config.Models {
 		model.HasKey, model.APIKey = model.APIKey != "", ""
+		if model.Usage != nil {
+			credentials := model.Usage.Redacted()
+			model.Usage = &credentials
+		}
 		models[i] = model
 	}
 	return Config{Models: models}
@@ -173,6 +179,13 @@ func prepareConfig(config *Config, previous Config) error {
 			}
 		}
 		model.HasKey = false
+		// Usage credentials are updated separately; ordinary model edits retain them.
+		model.Usage = nil
+		for _, old := range previous.Models {
+			if old.ID == model.ID {
+				model.Usage = old.Usage
+			}
+		}
 	}
 	return nil
 }

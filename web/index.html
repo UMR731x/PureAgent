@@ -9,6 +9,7 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/controls.css">
+  <link rel="stylesheet" href="/usage.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -29,7 +30,7 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-title"><button class="icon-button mobile-menu" id="menu-button" aria-label="展开任务导航"><span data-icon="menu"></span></button><span class="workspace-label">工作台</span><span class="breadcrumb">/</span><h1 id="session-title">新的灵感</h1></div>
-        <button class="settings-trigger" id="settings-open"><span data-icon="sliders"></span><span>模型设置</span><i class="config-dot" id="config-dot"></i></button>
+        <div class="topbar-actions"><button class="settings-trigger" id="usage-open"><span data-icon="gauge"></span><span>额度</span></button><button class="settings-trigger" id="settings-open"><span data-icon="sliders"></span><span>模型设置</span><i class="config-dot" id="config-dot"></i></button></div>
       </header>
 
       <section class="studio" id="studio">
@@ -102,6 +103,28 @@
       <div class="settings-bottom"><button class="primary-button" type="submit" id="save-settings">保存配置<span data-icon="check"></span></button></div>
     </form>
   </aside>
+
+  <dialog id="usage-dialog" class="usage-dialog" aria-labelledby="usage-title">
+    <div class="usage-heading"><div><div class="eyebrow">USAGE & QUOTA</div><h2 id="usage-title">用量与额度</h2></div><button class="icon-button" id="usage-close" aria-label="关闭额度查询"><span data-icon="x"></span></button></div>
+    <div class="usage-model"><span data-icon="sparkles"></span><div><strong id="usage-model-name"></strong><small id="usage-model-id"></small></div><button class="subtle-button" id="usage-refresh">刷新</button></div>
+    <div id="usage-results" aria-live="polite"></div>
+    <div class="usage-error" id="usage-error" role="alert" hidden></div>
+    <details id="usage-credentials" class="usage-credentials">
+      <summary>查询凭据<span>独立于生图 API Key</span></summary>
+      <form id="usage-form">
+        <p id="usage-auth-note"></p>
+        <div id="usage-ark-fields">
+          <label>Access Key<input id="usage-access-key" type="password" autocomplete="off" spellcheck="false"></label>
+          <label>Secret Key<input id="usage-secret-key" type="password" autocomplete="off" spellcheck="false"></label>
+          <label>Seat ID · 企业版选填<input id="usage-seat" autocomplete="off" placeholder="个人版留空" spellcheck="false"></label>
+        </div>
+        <div id="usage-openai-fields" hidden><label>Admin API Key<input id="usage-admin-key" type="password" autocomplete="off" spellcheck="false"></label></div>
+        <p class="usage-credential-note">凭据仅保存在本机，查询发往对应官方接口。已保存的密钥留空可保留。</p>
+        <button class="primary-button" id="usage-save" type="submit">保存并查询<span data-icon="arrow-right"></span></button>
+      </form>
+    </details>
+    <a id="usage-console" class="usage-console" target="_blank" rel="noreferrer">前往官方控制台 ↗</a>
+  </dialog>
 
   <dialog id="image-dialog" class="image-dialog">
     <div class="viewer-header"><div><strong id="viewer-title">查看原图</strong><span id="viewer-dimensions"></span></div><button class="icon-button" id="viewer-close" aria-label="关闭图片"><span data-icon="x"></span></button></div>

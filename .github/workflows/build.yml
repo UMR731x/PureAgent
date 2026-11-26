@@ -72,7 +72,7 @@ jobs:
       - name: Build Windows and Linux packages
         run: |
           mkdir -p dist/windows/bin dist/linux/bin
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/windows/bin/PureAgent.exe .
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H=windowsgui -X main.version=$VERSION" -o dist/windows/bin/PureAgent.exe .
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/linux/bin/pureagent .
           cp start.cmd README.md dist/windows/
           cp README.md dist/linux/

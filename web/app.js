@@ -6,12 +6,13 @@ import { initializeControls, refreshControls } from './controls.js';
 import { initializeUpdates } from './updates.js';
 import { syncModelOptions, selectedImageSize, restoreImageSize } from './model-options.js';
 import { createEditMarkup } from './markup.js';
+import { initializeUsage } from './usage.js';
 
 hydrateIcons();
 initializeControls();
 $('local-address').textContent = location.host;
 
-const state = { session: null, sessions: [], models: [], references: [], markupID: '', layerMode: false, busy: false };
+const state = { session: null, sessions: [], models: [], references: [], referenceTurnID: '', markupID: '', layerMode: false, busy: false };
 const drafts = new Map();
 let pollTimer;
 let navigationVersion = 0;
@@ -71,15 +72,20 @@ function updateControls() {
   $('upload-button').disabled = state.busy;
   $('generate-button').querySelector('span').textContent = state.busy ? '保存中' : state.layerMode ? '拆分' : '生成';
   const configured = state.models.find(model => model.id === $('model').value)?.has_key;
+  const previousOutputs = state.session?.turns.at(-1)?.outputs || [];
+  const hasPreviousImage = previousOutputs.some(output => state.references.includes(output.asset_id));
   $('composer-hint').textContent = !configured ? '首次使用，请在右上角配置 API Key'
     : state.layerMode ? '选择 1 张 PNG / JPEG 原图 · 支持文字 OCR'
+    : state.references.length > referenceLimit() ? `已加入 ${state.references.length} 张图，当前模型最多使用 ${referenceLimit()} 张，请移除不需要的参考图`
+    : hasPreviousImage ? `${state.references.length} 张参考图 · 已带入上一轮图片，可直接输入修改要求`
     : state.references.length ? `${state.references.length} 张参考图 · ${isOpenAI() ? '图 1 可添加局部标记' : '点击缩略图可局部编辑'}`
     : isOpenAI() ? 'PNG / JPEG / WebP · 最多 16 张参考图' : '支持拖入或粘贴参考图';
 }
 
 function saveDraft() {
   drafts.set(state.session?.id || 'new', {
-    prompt: $('prompt').value, references: [...state.references], markupID: state.markupID, options: options(), model: $('model').value,
+    prompt: $('prompt').value, references: [...state.references], referenceTurnID: state.referenceTurnID,
+    markupID: state.markupID, options: options(), model: $('model').value,
   });
 }
 
@@ -87,12 +93,22 @@ function restoreDraft(id) {
   const draft = drafts.get(id || 'new');
   $('prompt').value = draft?.prompt || '';
   state.references = draft?.references || [];
+  state.referenceTurnID = draft?.referenceTurnID || '';
+  carryPreviousImages();
   if (draft?.model && state.models.some(model => model.id === draft.model)) $('model').value = draft.model;
   state.markupID = isOpenAI() ? draft?.markupID || '' : '';
   applyOptions(draft?.options);
   renderAttachments(state.session, state.references);
   showError('composer-error');
   resizePrompt();
+}
+
+function carryPreviousImages() {
+  const previous = state.session?.turns.at(-1);
+  if (!previous || previous.status === 'running' || state.referenceTurnID === previous.id) return false;
+  state.referenceTurnID = previous.id;
+  state.references = [...new Set([...state.references, ...previous.outputs.map(output => output.asset_id)])];
+  return true;
 }
 
 async function refreshHistory() {
@@ -113,6 +129,7 @@ function schedulePoll() {
         const session = await api(`/sessions/${currentID}`);
         if (version === navigationVersion) {
           state.session = session;
+          if (carryPreviousImages()) renderAttachments(session, state.references);
           renderConversation(session);
           updateControls();
         }
@@ -432,7 +449,7 @@ document.addEventListener('click', event => {
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && $('settings-drawer').classList.contains('open')) closeSettings();
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !$('image-dialog').open && !$('settings-drawer').classList.contains('open')) {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !document.querySelector('dialog[open]') && !$('settings-drawer').classList.contains('open')) {
     event.preventDefault();
     if (!$('generate-button').hidden) $('composer').requestSubmit();
   }
@@ -443,7 +460,7 @@ document.addEventListener('keydown', event => {
 });
 
 document.addEventListener('paste', event => {
-  if (event.target.closest('#settings-drawer, #image-dialog')) return;
+  if (event.target.closest('#settings-drawer, dialog')) return;
   const files = [...(event.clipboardData?.files || [])];
   if (files.length) { event.preventDefault(); uploadFiles(files); }
 });
@@ -488,6 +505,7 @@ async function initialize() {
 }
 
 initialize();
+initializeUsage(() => state.models.find(model => model.id === $('model').value));
 initializeUpdates(() => {
   saveDraft();
   sessionStorage.setItem('pureagent-update-drafts', JSON.stringify([...drafts]));
