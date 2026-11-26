@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime"
 	"mime/multipart"
 	"net/textproto"
 	"net/url"
@@ -173,8 +172,10 @@ func (a *App) writeOpenAIImage(writer *multipart.Writer, field string, session *
 		return fmt.Errorf("读取原图 %s：%w", asset.Name, err)
 	}
 	defer file.Close()
+	// Form-data requires filename, not the filename* encoding used by mime.FormatMediaType.
+	filename := strings.NewReplacer("\\", "\\\\", `"`, `\"`, "\r", "%0D", "\n", "%0A").Replace(asset.Name)
 	header := make(textproto.MIMEHeader)
-	header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": field, "filename": asset.Name}))
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, field, filename))
 	header.Set("Content-Type", asset.MIME)
 	part, err := writer.CreatePart(header)
 	if err != nil {

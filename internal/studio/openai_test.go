@@ -17,7 +17,7 @@ import (
 )
 
 func TestOpenAIImagesGenerationAndEditsPreserveOriginals(t *testing.T) {
-	for _, references := range []int{0, 3, 16} {
+	for _, references := range []int{0, 1, 3, 16} {
 		t.Run(strconv.Itoa(references)+" references", func(t *testing.T) {
 			testOpenAIImages(t, references)
 		})
@@ -123,6 +123,10 @@ func readOpenAIRequest(t *testing.T, r *http.Request) (map[string]string, map[st
 		if part.FileName() == "" {
 			fields[part.FormName()] = string(content)
 		} else {
+			// Go also accepts filename*, hiding form-data incompatibilities in other parsers.
+			if !strings.Contains(part.Header.Get("Content-Disposition"), "; filename=") {
+				t.Errorf("multipart file needs a filename parameter: %s", part.Header.Get("Content-Disposition"))
+			}
 			if part.Header.Get("Content-Type") != "image/png" {
 				t.Error("multipart image MIME was lost")
 			}
@@ -147,8 +151,9 @@ func openAIInput(t *testing.T, app *App, references int, original, markup []byte
 	t.Helper()
 	session, _ := app.store.createSession()
 	input := GenerationInput{ModelID: "openai", Options: Options{Count: 1, Quality: "xhigh", Complexity: "low", Background: "transparent"}}
-	for range references {
-		asset, err := app.store.writeAsset(session.ID, "original.png", "upload", original)
+	filenames := []string{"参考原图.png", "original.png", "灵感 🎨 (1).png", `参考 "细节".png`}
+	for index := range references {
+		asset, err := app.store.writeAsset(session.ID, filenames[index%len(filenames)], "upload", original)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -156,7 +161,7 @@ func openAIInput(t *testing.T, app *App, references int, original, markup []byte
 		input.ReferenceIDs = append(input.ReferenceIDs, asset.ID)
 	}
 	if references > 0 {
-		asset, err := app.store.writeAsset(session.ID, "markup.png", "upload", markup)
+		asset, err := app.store.writeAsset(session.ID, "编辑标记.png", "upload", markup)
 		if err != nil {
 			t.Fatal(err)
 		}
