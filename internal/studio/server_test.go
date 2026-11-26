@@ -39,7 +39,7 @@ func localRequest(t *testing.T, app *App, method, path string, body any) *httpte
 	}
 	request := httptest.NewRequest(method, "http://127.0.0.1:57123"+path, &encoded)
 	response := httptest.NewRecorder()
-	app.Handler(fstest.MapFS{}).ServeHTTP(response, request)
+	app.Handler(fstest.MapFS{}, nil).ServeHTTP(response, request)
 	return response
 }
 
@@ -89,7 +89,7 @@ func TestOriginalImageUploadReferenceOutputAndDownload(t *testing.T) {
 	request := httptest.NewRequest("POST", "http://127.0.0.1:57123/api/sessions/"+session.ID+"/assets", &multipartBody)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	response := httptest.NewRecorder()
-	app.Handler(fstest.MapFS{}).ServeHTTP(response, request)
+	app.Handler(fstest.MapFS{}, nil).ServeHTTP(response, request)
 	if response.Code != http.StatusCreated {
 		t.Fatal(response.Body.String())
 	}
@@ -191,7 +191,7 @@ func TestLocalOriginAndConfigKeyRetention(t *testing.T) {
 	request := httptest.NewRequest("POST", "http://127.0.0.1:57123/api/sessions", nil)
 	request.Header.Set("Origin", "https://unrelated.example")
 	response = httptest.NewRecorder()
-	app.Handler(fstest.MapFS{}).ServeHTTP(response, request)
+	app.Handler(fstest.MapFS{}, nil).ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatal("cross-origin local data modification was accepted")
 	}

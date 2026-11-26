@@ -5,7 +5,9 @@
 
 ## 启动
 
-Windows：下载下方 Actions 构建产物，解压后双击 `start.cmd`，然后打开 **http://127.0.0.1:57123**。保留终端窗口，关闭窗口即停止服务。从源码克隆的项目需先按下方命令构建。
+Windows：在 [GitHub Release](https://github.com/UMR731x/PureAgent/releases/latest) 下载 `PureAgent-windows-amd64.zip`，解压后双击 `start.cmd`，然后打开 **http://127.0.0.1:57123**。首次启动需保留终端窗口。从源码克隆的项目需先按下方命令构建。
+
+Linux：下载 Release 中的 `PureAgent-linux-amd64.tar.gz`，解压后在该目录运行 `./bin/pureagent`。
 
 从源码运行（Go 1.24 或更新版本）：
 
@@ -37,7 +39,7 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 
 ## GitHub Actions 构建
 
-推送、Pull Request 和手动运行均会触发 [Build PureAgent](https://github.com/UMR731x/PureAgent/actions/workflows/build.yml)。工作流使用 Go 1.27，运行竞态测试、Go 静态检查和前端 JavaScript 语法检查，然后生成 Windows/Linux amd64 可执行文件。
+推送、Pull Request 和手动运行均会触发 [Build PureAgent](https://github.com/UMR731x/PureAgent/actions/workflows/build.yml)。工作流使用 Go 1.27，在 Windows/Linux 上测试真实进程替换、回退及数据保留，并运行 Linux 竞态测试、Go 静态检查和前端 JavaScript 语法检查，然后生成 Windows/Linux amd64 可执行文件。
 
 在一次成功运行的 **Artifacts** 区域下载：
 
@@ -45,6 +47,20 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 - `PureAgent-linux-amd64`：下载后解压其中的 `PureAgent-linux-amd64.tar.gz`，在解压目录运行 `./bin/pureagent`。tar 包保留可执行权限。
 
 需要手动构建时，在 Actions 中选择该工作流并点击 **Run workflow**。CI 使用模拟图片接口测试，不需要模型 API Key。构建包不包含本地配置或会话数据；首次使用请在模型设置中填入自己的密钥。
+
+### 自动发布 Release
+
+在 `.github/releases/` 新增版本文案，例如 `v0.1.1.md`，经人工确认后推送到 `main` 即可。流水线从文件名读取版本号，测试通过后自动构建、创建版本标签并发布 Release；正文完全使用该 Markdown 文件，不生成或改写文案。无需人工上传构建包。
+
+修改最新版本的文案后推送到 `main`，流水线仅更新已发布版本的正文，保留原有下载文件。代码变更需要发布新版本时，应新增更高版本号的文案文件。没有文案变更的普通推送只产生 Actions 开发构建；在 `main` 手动运行工作流也可发布最新文案对应版本。
+
+### 客户端自动更新
+
+左下角“检查并更新”会读取本仓库最新正式 Release，下载匹配当前系统的客户端并校验下载完整性。已有生成任务会先完成，随后自动替换客户端、重启并恢复页面；新版本正常启动后删除旧客户端和临时更新文件，启动失败则恢复原版本并显示错误。
+
+更新只替换运行中的可执行文件，保留原工作目录、端口和 `-data` 参数；配置、会话 JSON、上传原图和生成结果不会被迁移或删除。自动重启后的服务在后台运行，浏览器中的当前任务和未提交输入会保留。请勿在更新过程中移动安装目录。
+
+没有更新入口的旧客户端需要先手动替换一次 `bin` 中对应文件，保留 `data`。源码开发构建显示 `dev`，不会自行替换源码运行产生的临时程序；一键更新适用于 Release 客户端。
 
 ## 使用
 
@@ -100,7 +116,7 @@ data/
 ## 检查
 
 ```sh
-go test -buildvcs=false -race ./internal/studio
+go test -buildvcs=false -race -timeout 60s ./internal/...
 go vet -buildvcs=false ./...
 ```
 

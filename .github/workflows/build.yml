@@ -9,8 +9,47 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  release-metadata:
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.notes.outputs.publish }}
+      version: ${{ steps.notes.outputs.version }}
+      notes: ${{ steps.notes.outputs.notes }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Read version notes
+        id: notes
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: python3 .github/release_metadata.py
+
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27'
+          cache: false
+      - name: Test native client replacement and image sessions
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            go test -race -timeout 60s ./internal/...
+          else
+            go test -timeout 60s ./internal/...
+          fi
+
+  build:
+    needs: [release-metadata, test]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.release-metadata.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -20,9 +59,6 @@ jobs:
         with:
           go-version: '1.27'
           cache: false
-
-      - name: Test
-        run: go test -race ./internal/studio
 
       - name: Check Go code
         run: go vet ./...
@@ -36,11 +72,15 @@ jobs:
       - name: Build Windows and Linux packages
         run: |
           mkdir -p dist/windows/bin dist/linux/bin
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o dist/windows/bin/PureAgent.exe .
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/linux/bin/pureagent .
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/windows/bin/PureAgent.exe .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/linux/bin/pureagent .
           cp start.cmd README.md dist/windows/
           cp README.md dist/linux/
           tar -czf dist/PureAgent-linux-amd64.tar.gz -C dist/linux .
+          cp dist/windows/bin/PureAgent.exe dist/PureAgent-windows-amd64.exe
+          cp dist/linux/bin/pureagent dist/PureAgent-linux-amd64
+          cd dist/windows
+          zip -r ../PureAgent-windows-amd64.zip .
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v7
@@ -53,3 +93,35 @@ jobs:
         with:
           name: PureAgent-linux-amd64
           path: dist/PureAgent-linux-amd64.tar.gz
+
+      - name: Upload release assets
+        if: needs.release-metadata.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: dist/PureAgent-*
+
+  release:
+    needs: [release-metadata, build]
+    if: needs.release-metadata.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-assets
+          path: dist
+      - name: Publish release with reviewed notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release-metadata.outputs.version }}
+          NOTES: ${{ needs.release-metadata.outputs.notes }}
+        run: |
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release edit "$VERSION" --notes-file "$NOTES"
+          else
+            gh release create "$VERSION" dist/PureAgent-* \
+              --target "$GITHUB_SHA" --title "PureAgent $VERSION" --notes-file "$NOTES"
+          fi

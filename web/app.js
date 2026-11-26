@@ -2,8 +2,11 @@ import { $, api, toast, showError } from './api.js';
 import { hydrateIcons } from './icons.js';
 import { renderHistory, renderConversation, renderAttachments, renderModels, modelConfigCard } from './views.js';
 import { createViewer, copyImage } from './viewer.js';
+import { initializeControls, refreshControls } from './controls.js';
+import { initializeUpdates } from './updates.js';
 
 hydrateIcons();
+initializeControls();
 $('local-address').textContent = location.host;
 
 const state = { session: null, sessions: [], models: [], references: [], layerMode: false, busy: false };
@@ -48,6 +51,7 @@ function setLayerMode(enabled) {
 }
 
 function updateControls() {
+  refreshControls();
   const running = state.session?.turns.some(turn => turn.status === 'running') || false;
   $('generate-button').hidden = running;
   $('stop-button').hidden = !running;
@@ -337,6 +341,7 @@ $('advanced-toggle').onclick = () => {
 };
 $('background').onchange = () => {
   if ($('background').value === 'transparent') $('format').value = 'png';
+  refreshControls();
 };
 $('model').onchange = () => { localStorage.setItem('pureagent-model', $('model').value); updateControls(); };
 $('stop-button').onclick = async () => {
@@ -369,7 +374,7 @@ document.addEventListener('keydown', event => {
     event.preventDefault();
     if (!$('generate-button').hidden) $('composer').requestSubmit();
   }
-  if (event.key.toLowerCase() === 'n' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.target.closest('input, textarea, select, dialog, [contenteditable=true]') && !$('settings-drawer').classList.contains('open')) {
+  if (event.key.toLowerCase() === 'n' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.target.closest('input, textarea, select, [role=combobox], dialog, [contenteditable=true]') && !$('settings-drawer').classList.contains('open')) {
     event.preventDefault();
     openSession(null);
   }
@@ -410,8 +415,18 @@ async function initialize() {
     const selected = new URLSearchParams(location.search).get('session');
     if (selected) await openSession(selected);
     else updateControls();
+    const savedDrafts = sessionStorage.getItem('pureagent-update-drafts');
+    if (savedDrafts) {
+      sessionStorage.removeItem('pureagent-update-drafts');
+      for (const [id, draft] of JSON.parse(savedDrafts)) drafts.set(id, draft);
+      restoreDraft(state.session?.id);
+    }
     schedulePoll();
   } catch (error) { showError('composer-error', `无法连接本地工作空间：${error.message}`); }
 }
 
 initialize();
+initializeUpdates(() => {
+  saveDraft();
+  sessionStorage.setItem('pureagent-update-drafts', JSON.stringify([...drafts]));
+});

@@ -14,12 +14,13 @@ import (
 )
 
 type App struct {
-	store  *Store
-	client *http.Client
-	jobs   map[string]context.CancelFunc // Protected by store.mu.
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	store    *Store
+	client   *http.Client
+	jobs     map[string]context.CancelFunc // Protected by store.mu.
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	updating bool // Protected by store.mu; prevents new jobs while draining for an update.
 }
 
 func New(directory string) (*App, error) {
@@ -46,7 +47,20 @@ func (a *App) Close() {
 	a.wg.Wait()
 }
 
-func (a *App) Handler(frontend fs.FS) http.Handler {
+func (a *App) WaitForUpdate() {
+	a.store.mu.Lock()
+	a.updating = true
+	a.store.mu.Unlock()
+	a.wg.Wait()
+}
+
+func (a *App) ResumeAfterUpdate() {
+	a.store.mu.Lock()
+	a.updating = false
+	a.store.mu.Unlock()
+}
+
+func (a *App) Handler(frontend fs.FS, updates http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/config", a.getConfig)
 	mux.HandleFunc("PUT /api/config", a.putConfig)
@@ -57,6 +71,9 @@ func (a *App) Handler(frontend fs.FS) http.Handler {
 	mux.HandleFunc("GET /api/sessions/{session}/assets/{asset}", a.serveAsset)
 	mux.HandleFunc("POST /api/sessions/{session}/turns", a.startGeneration)
 	mux.HandleFunc("POST /api/sessions/{session}/cancel", a.cancelGeneration)
+	if updates != nil {
+		mux.Handle("/api/update", updates)
+	}
 	mux.Handle("/", http.FileServer(http.FS(frontend)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")

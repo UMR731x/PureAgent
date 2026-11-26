@@ -52,6 +52,10 @@ func (a *App) startGeneration(w http.ResponseWriter, r *http.Request) {
 	}
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
+	if a.updating {
+		writeError(w, http.StatusConflict, fmt.Errorf("正在更新客户端，请在重启后开始新生成；现有任务会继续完成"))
+		return
+	}
 	session, err := a.store.session(r.PathValue("session"))
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
