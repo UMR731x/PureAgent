@@ -39,24 +39,8 @@ go build -buildvcs=false -ldflags "-H=windowsgui" -o bin/PureAgent.exe .
 
 默认数据目录是**当前工作目录**下的 `data/`；`start.cmd` 会先进入项目根目录。`-buildvcs=false` 使从不含 Git 元数据的源码副本构建时也能工作。
 
-## GitHub Actions 构建
 
-推送、Pull Request 和手动运行均会触发 [Build PureAgent](https://github.com/UMR731x/PureAgent/actions/workflows/build.yml)。工作流使用 Go 1.27，在 Windows/Linux 上测试真实进程替换、回退及数据保留，并运行 Linux 竞态测试、Go 静态检查和前端 JavaScript 语法检查，然后生成 Windows/Linux amd64 可执行文件。
-
-在一次成功运行的 **Artifacts** 区域下载：
-
-- `PureAgent-windows-amd64`：解压后包含 `start.cmd`、`README.md` 和 `bin/PureAgent.exe`。
-- `PureAgent-linux-amd64`：下载后解压其中的 `PureAgent-linux-amd64.tar.gz`，在解压目录运行 `./bin/pureagent`。tar 包保留可执行权限。
-
-需要手动构建时，在 Actions 中选择该工作流并点击 **Run workflow**。CI 使用模拟图片接口测试，不需要模型 API Key。构建包不包含本地配置或会话数据；首次使用请在模型设置中填入自己的密钥。
-
-### 自动发布 Release
-
-在 `.github/releases/` 新增版本文案，例如 `v0.1.1.md`，经人工确认后推送到 `main` 即可。流水线从文件名读取版本号，测试通过后自动构建、创建版本标签并发布 Release；正文完全使用该 Markdown 文件，不生成或改写文案。无需人工上传构建包。
-
-修改最新版本的文案后推送到 `main`，流水线仅更新已发布版本的正文，保留原有下载文件。代码变更需要发布新版本时，应新增更高版本号的文案文件。没有文案变更的普通推送只产生 Actions 开发构建；在 `main` 手动运行工作流也可发布最新文案对应版本。
-
-### 客户端自动更新
+### 客户端更新
 
 左下角“检查并更新”会读取本仓库最新正式 Release，下载匹配当前系统的客户端并校验下载完整性。已有生成任务会先完成，随后自动替换客户端、重启并恢复页面；新版本正常启动后删除旧客户端和临时更新文件，启动失败则恢复原版本并显示错误。
 
@@ -160,12 +144,4 @@ go vet -buildvcs=false ./...
 
 接口依据：[Seedream 5.5 教程](https://docs.volcengine.com/docs/ark/seedream-5-5?lang=zh)、[图片生成 API](https://docs.volcengine.com/docs/ark/image-generation-api?lang=zh)、[交互编辑指南](https://docs.volcengine.com/docs/ark/seedream-5-0-pro-editing-guide?lang=zh)、[AgentPlan 接入视觉模型](https://ark.volcengine.com/region:cn-beijing/docs/agent-plan-enterprise-visual-models)。
 
-## 图标资源
 
-图标以分层画布、风景画面、编辑选区和生成光芒表现图像创作功能，与界面的青绿色配色保持一致。原始 PNG 和多尺寸 ICO 位于 `assets/`；网页使用 `web/icon.png`、`web/favicon.ico`。Windows amd64 构建自动嵌入仓库中的 `resources_windows_amd64.syso`，无需额外工具。
-
-更换图标后，可使用 `rsrc` v0.10.2 重新生成 Windows 资源：
-
-```sh
-rsrc -ico assets/pureagent.ico -o resources_windows_amd64.syso -arch amd64
-```
