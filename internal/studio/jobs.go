@@ -25,7 +25,10 @@ func findModel(config Config, id string) (Model, error) {
 	return Model{}, fmt.Errorf("请选择已配置的模型")
 }
 
-func validateReferences(session *Session, input GenerationInput) error {
+func validateReferences(session *Session, input GenerationInput, model Model) error {
+	if model.Provider == "openai" {
+		return validateOpenAIReferences(session, input)
+	}
 	for _, id := range input.ReferenceIDs {
 		asset, found := assetByID(session, id)
 		if !found {
@@ -44,10 +47,6 @@ func validateReferences(session *Session, input GenerationInput) error {
 func (a *App) startGeneration(w http.ResponseWriter, r *http.Request) {
 	var input GenerationInput
 	if !decodeRequest(w, r, &input) {
-		return
-	}
-	if err := validateInput(&input); err != nil {
-		writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	a.store.mu.Lock()
@@ -72,7 +71,14 @@ func (a *App) startGeneration(w http.ResponseWriter, r *http.Request) {
 	}
 	model, err := findModel(config, input.ModelID)
 	if err == nil {
-		err = validateReferences(session, input)
+		if model.Provider == "openai" {
+			err = validateOpenAIInput(&input)
+		} else {
+			err = validateInput(&input)
+		}
+	}
+	if err == nil {
+		err = validateReferences(session, input, model)
 	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -130,14 +136,10 @@ func (a *App) updateTurn(sessionID, turnID string, update func(*Session, *Turn))
 
 func (a *App) runGeneration(ctx context.Context, session *Session, turn Turn, model Model) {
 	defer a.wg.Done()
-	images, generationErr := a.referenceImages(session, turn.GenerationInput)
-	var body []byte
-	if generationErr == nil {
-		body, generationErr = requestBody(model, turn.GenerationInput, images)
-	}
+	payload, generationErr := a.generationRequest(session, turn.GenerationInput, model)
 	for i := 0; i < turn.Options.Count && generationErr == nil; i++ {
 		var result *providerResponse
-		result, generationErr = callProvider(ctx, a.client, model, body)
+		result, generationErr = callProvider(ctx, a.client, model, payload)
 		if generationErr == nil {
 			generationErr = a.saveResult(ctx, session.ID, turn.ID, i+1, result, turn.Options.Format)
 		}
@@ -165,6 +167,9 @@ func (a *App) runGeneration(ctx context.Context, session *Session, turn Turn, mo
 }
 
 func (a *App) saveResult(ctx context.Context, sessionID, turnID string, batch int, result *providerResponse, format string) error {
+	if result.Format != "" {
+		format = result.Format
+	}
 	for i, item := range result.Data {
 		original, err := imageBytes(ctx, a.client, item)
 		if err != nil {
@@ -179,6 +184,12 @@ func (a *App) saveResult(ctx context.Context, sessionID, turnID string, batch in
 			return fmt.Errorf("保存原图：%w", err)
 		}
 		output := item.Output
+		if output.Size == "" {
+			output.Size = result.Size
+		}
+		if output.Background == "" {
+			output.Background = result.Background
+		}
 		output.AssetID = asset.ID
 		if err := a.updateTurn(sessionID, turnID, func(session *Session, saved *Turn) {
 			session.Assets = append(session.Assets, asset)
@@ -196,6 +207,18 @@ func (a *App) saveResult(ctx context.Context, sessionID, turnID string, batch in
 			saved.RequestIDs = append(saved.RequestIDs, result.RequestID)
 		}
 	})
+}
+
+func (a *App) generationRequest(session *Session, input GenerationInput, model Model) (generationRequest, error) {
+	if model.Provider == "openai" {
+		return a.openAIRequest(session, input, model)
+	}
+	images, err := a.referenceImages(session, input)
+	if err != nil {
+		return generationRequest{}, err
+	}
+	body, err := requestBody(model, input, images)
+	return generationRequest{URL: model.URL, ContentType: "application/json", Body: body}, err
 }
 
 func (a *App) cancelGeneration(w http.ResponseWriter, r *http.Request) {

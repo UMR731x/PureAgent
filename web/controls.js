@@ -1,8 +1,10 @@
 import { icon } from './icons.js';
 
-const selects = [];
-const numbers = [];
+let selects = [];
+let numbers = [];
 let opened;
+let initialized = false;
+let nextID = 0;
 
 function closeMenu() {
   if (!opened) return;
@@ -89,6 +91,7 @@ function selectKey(control, event) {
 }
 
 function enhanceSelect(select) {
+  if (!select.id) select.id = `select-${++nextID}`;
   const label = select.getAttribute('aria-label') || select.closest('label').firstChild.textContent.trim();
   const button = document.createElement('button');
   button.type = 'button';
@@ -140,6 +143,13 @@ function enhanceNumber(input) {
 }
 
 export function refreshControls() {
+  selects = selects.filter(control => {
+    if (control.select.isConnected) return true;
+    if (opened === control) closeMenu();
+    control.menu.remove();
+    return false;
+  });
+  numbers = numbers.filter(control => control.input.isConnected);
   for (const { select, button, label } of selects) {
     const text = select.selectedOptions[0]?.text || '';
     button.querySelector('span').textContent = text;
@@ -153,9 +163,16 @@ export function refreshControls() {
   if (opened?.select.disabled) closeMenu();
 }
 
-export function initializeControls() {
-  document.querySelectorAll('select').forEach(enhanceSelect);
-  document.querySelectorAll('input[type=number]').forEach(enhanceNumber);
+export function initializeControls(root = document) {
+  root.querySelectorAll('select').forEach(select => {
+    if (!selects.some(control => control.select === select)) enhanceSelect(select);
+  });
+  root.querySelectorAll('input[type=number]').forEach(input => {
+    if (!numbers.some(control => control.input === input)) enhanceNumber(input);
+  });
+  refreshControls();
+  if (initialized) return;
+  initialized = true;
   document.addEventListener('pointerdown', event => {
     if (opened && !opened.button.contains(event.target) && !opened.menu.contains(event.target)) closeMenu();
   });
@@ -166,5 +183,4 @@ export function initializeControls() {
     if (opened && !opened.menu.contains(event.target)) closeMenu();
   }, true);
   window.addEventListener('resize', closeMenu);
-  refreshControls();
 }

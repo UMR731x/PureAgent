@@ -1,7 +1,7 @@
 # PureAgent
 
 本地运行的图像创作工作台。Go 后端与内嵌 Web UI，无第三方运行依赖。
-当前接入 Seedream 5.5 / AgentPlan 图片生成协议；多个配置可使用不同的模型名称、API Key 和完整接口 URL。
+支持 Seedream 5.5 / AgentPlan 与 OpenAI Images（GPT Image 2.6）。可保存多个模型配置，分别选择接口类型、模型名称、API Key 和 URL。
 
 ## 启动
 
@@ -64,12 +64,12 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 
 ## 使用
 
-1. 右上角“模型设置”中保存配置。已有密钥留空时保持原值，界面不会回传已保存的密钥。
+1. 右上角“模型设置”中选择接口类型并保存配置。旧配置仍按 Seedream 处理。同一接口类型的已有密钥留空时保持原值；切换接口类型需填写对应密钥，界面不会回传已保存的密钥。
 2. 输入描述，选择模型与生成参数。点击“生成”，或按 `Ctrl/⌘ + Enter`。
 3. 参考图可通过附件按钮、拖入或粘贴上传；输入框上方的顺序对应“图 1、图 2”等编号。
 4. 点击生成结果查看原图；“编辑”把选中图片作为参考图，再输入本轮修改要求。每次编辑都保存新结果。
-5. “局部编辑”支持点选与框选，将官方 `<point>` / `<bbox>` 坐标插入输入框；可以直接修改指令。图片本身不会被画框、裁切或重新编码。
-6. “更多生成选项”可选择透明背景、PNG/JPEG、水印与图层拆分。拆分只使用一张 PNG/JPEG，可填写拆分要求，也可留空让模型识别。
+5. “局部编辑”支持点选与框选。Seedream 将 `<point>` / `<bbox>` 坐标插入输入框；OpenAI 为第一张参考图创建独立的透明 PNG 标记，并填入可修改的编辑指令。原图始终保留原始字节。
+6. “更多生成选项”按接口显示能力：Seedream 提供背景、PNG/JPEG、水印与图层拆分；OpenAI 提供背景、PNG/JPEG/WebP、质量与复杂度。Seedream 拆分只使用一张 PNG/JPEG，可填写拆分要求，也可留空让模型识别。
 7. 拆分结果逐层保存。打开文字图层可查看、复制 OCR 文本，以及位置和文字样式；各图层也可继续交给模型编辑。
 
 任务运行在 Go 后端，刷新页面、关闭页面或切换任务不会取消生成。点击“停止”会取消本地等待与后续调用，上游可能仍在处理或已经计费。停止程序后，未完成记录会在下次启动标记为中断，不自动重新调用。
@@ -90,7 +90,27 @@ go build -buildvcs=false -o bin/PureAgent.exe .
 
 只提交当前输入框内的提示词、选定的参考图与生成选项。不设置系统提示词，不偷偷拼接历史对话。继续修改时选择需要编辑的结果；若需要结合多张图，可以将它们依次加入参考图。
 
-自动比例和分辨率使用 API 的真实语义，不发送生成接口不支持的 `size: "auto"`。本地页面显示的是任务进度，不是模型的流式生成。
+Seedream 的自动比例和分辨率使用 API 的真实语义，不发送该生成接口不支持的 `size: "auto"`。本地页面显示的是任务进度，不是模型的流式生成。
+
+## OpenAI GPT Image 2.6 参数
+
+在模型设置中选择 **OpenAI Images · GPT Image 2.6**，填入 `gpt-image-2.6-flare` 或 `gpt-image-2.6-sunburst`、对应 API Key 和 `https://api.openai.com/v1`。也可填写兼容服务的模型别名、基础 URL 或完整 `/images/generations`、`/images/edits` 地址。自定义路径前缀和查询参数会保留；服务需实现对应的 Images 协议。
+
+| 选项 | 行为 |
+| --- | --- |
+| 生成与编辑 | 纯文本使用 JSON `/images/generations`；有参考图时使用 multipart `/images/edits`，通过 `image[]` 上传原始文件。读取返回的 `b64_json` 并保存为原图。 |
+| 生成数量 | 默认 1，多张任务逐张调用；发生错误时保留已完成结果。 |
+| 尺寸 | 默认 `auto`；提供常用横竖比例与自定义宽高。宽高须为 16 的倍数、单边不超过 3840 像素、比例在 1:3 至 3:1、总像素为 655,360–8,294,400。 |
+| 参考图 | 最多 16 张 PNG、JPEG 或 WebP，每张小于 50 MiB。 |
+| 局部编辑 | 点选或框选生成透明 PNG `markup`，独立于原图发送，仅作用于第一张参考图；可以移除或重新选区。底图和标记图均不超过 16,777,216 像素。 |
+| 背景与格式 | 自动、不透明、透明；PNG、JPEG、WebP。透明背景使用 PNG 或 WebP。 |
+| 质量 | `auto`、`low`、`medium`、`high`、`xhigh`、`max`。 |
+| 复杂度 | 模型默认（不传参数）、`low`、`medium`、`high`。 |
+| 能力差异 | 不提供 Seedream 的图层拆分、结构化 OCR 和水印开关，不发送这些字段或 `response_format`。 |
+
+本次接入覆盖静态图片生成与编辑。SVG、GIF、流式输出未接入。已使用模拟接口验证请求协议、参考原图与局部标记、批次生成、错误显示和会话保存；尚未使用 OpenAI 真实密钥验证出图效果。
+
+依据：[图像生成指南](https://developers.openai.com/api/docs/guides/image-generation)、[图像提示与标记编辑](https://developers.openai.com/api/docs/guides/image-prompting)、[生成 API](https://developers.openai.com/api/reference/resources/images/methods/generate)、[编辑 API](https://developers.openai.com/api/reference/resources/images/methods/edit)。
 
 ## 文件保存
 
@@ -105,7 +125,7 @@ data/
         <asset-id>.jpeg
 ```
 
-`session.json` 中的 `assets[].path` 相对于该会话目录；`reference_ids` 和 `outputs[].asset_id` 引用同一 JSON 内的附件记录。JSON 不包含图片 Base64 或密钥。图层的坐标、顺序和 OCR 样式一并保存。
+`session.json` 中的 `assets[].path` 相对于该会话目录；`reference_ids`、OpenAI 局部编辑的 `markup_id` 和 `outputs[].asset_id` 引用同一 JSON 内的附件记录。JSON 不包含图片 Base64 或密钥。图层的坐标、顺序和 OCR 样式一并保存。
 
 图片按原始字节保存，发给 API 和下载到本地时都不缩放、不重新编码。复制 PNG 时直接复制原图；其他浏览器支持的图片格式会按原始像素尺寸转换成剪贴板支持的 PNG。复制失败时界面显示原因，原图下载不受影响。
 
@@ -120,8 +140,18 @@ go test -buildvcs=false -race -timeout 60s ./internal/...
 go vet -buildvcs=false ./...
 ```
 
-测试覆盖原图上传→API 参考图→生成→原图下载、JSON 路径引用、无系统提示词、5.5 参数构造、批次部分成功、错误信息与密钥隐藏、配置更新保留密钥、重启中断恢复及本地请求来源检查。测试使用本机模拟 API，不消耗模型额度。
+测试覆盖原图上传→API 参考图→生成→原图下载、JSON 路径引用、无系统提示词、Seedream 5.5 与 OpenAI 2.6 参数构造、OpenAI 多参考图和独立标记上传、批次部分成功、错误信息与密钥隐藏、配置更新保留密钥、重启中断恢复及本地请求来源检查。测试使用本机模拟 API，不消耗模型额度。
 
 开发时另已通过提供的 AgentPlan 接口验证：自动分辨率生成、框选指令编辑、透明 PNG、图层拆分和富文本 OCR。实测会话保存在本地 `data/sessions/`，不属于源码。
 
 接口依据：[Seedream 5.5 教程](https://docs.volcengine.com/docs/ark/seedream-5-5?lang=zh)、[图片生成 API](https://docs.volcengine.com/docs/ark/image-generation-api?lang=zh)、[交互编辑指南](https://docs.volcengine.com/docs/ark/seedream-5-0-pro-editing-guide?lang=zh)、[AgentPlan 接入视觉模型](https://ark.volcengine.com/region:cn-beijing/docs/agent-plan-enterprise-visual-models)。
+
+## 图标资源
+
+图标以分层画布、风景画面、编辑选区和生成光芒表现图像创作功能，与界面的青绿色配色保持一致。原始 PNG 和多尺寸 ICO 位于 `assets/`；网页使用 `web/icon.png`、`web/favicon.ico`。Windows amd64 构建自动嵌入仓库中的 `resources_windows_amd64.syso`，无需额外工具。
+
+更换图标后，可使用 `rsrc` v0.10.2 重新生成 Windows 资源：
+
+```sh
+rsrc -ico assets/pureagent.ico -o resources_windows_amd64.syso -arch amd64
+```

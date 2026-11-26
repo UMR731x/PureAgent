@@ -4,27 +4,34 @@ import { renderHistory, renderConversation, renderAttachments, renderModels, mod
 import { createViewer, copyImage } from './viewer.js';
 import { initializeControls, refreshControls } from './controls.js';
 import { initializeUpdates } from './updates.js';
+import { syncModelOptions, selectedImageSize, restoreImageSize } from './model-options.js';
+import { createEditMarkup } from './markup.js';
 
 hydrateIcons();
 initializeControls();
 $('local-address').textContent = location.host;
 
-const state = { session: null, sessions: [], models: [], references: [], layerMode: false, busy: false };
+const state = { session: null, sessions: [], models: [], references: [], markupID: '', layerMode: false, busy: false };
 const drafts = new Map();
 let pollTimer;
 let navigationVersion = 0;
+
+function isOpenAI() { return state.models.find(model => model.id === $('model').value)?.provider === 'openai'; }
+function referenceLimit() { return isOpenAI() ? 16 : 10; }
 
 function options() {
   return {
     count: state.layerMode ? 1 : Number($('count').value),
     resolution: $('resolution').value, ratio: $('ratio').value,
     background: $('background').value, format: $('format').value,
-    watermark: $('watermark').checked, layer_decomposition: state.layerMode,
+    watermark: !isOpenAI() && $('watermark').checked, layer_decomposition: state.layerMode,
     max_images: Number($('max-images').value), text_recognition: $('text-recognition').checked,
+    ...(isOpenAI() ? { size: selectedImageSize(), quality: $('quality').value, complexity: $('complexity').value } : {}),
   };
 }
 
 function applyOptions(value = {}) {
+  syncModelOptions(isOpenAI(), state.layerMode);
   $('count').value = value.count || 1;
   $('resolution').value = value.resolution || 'auto';
   $('ratio').value = value.ratio || 'auto';
@@ -33,10 +40,14 @@ function applyOptions(value = {}) {
   $('watermark').checked = value.watermark || false;
   $('max-images').value = value.max_images || 30;
   $('text-recognition').checked = value.text_recognition ?? true;
+  restoreImageSize(value.size);
+  $('quality').value = value.quality || 'auto';
+  $('complexity').value = value.complexity || '';
   setLayerMode(value.layer_decomposition || false);
 }
 
 function setLayerMode(enabled) {
+  enabled = enabled && !isOpenAI();
   state.layerMode = enabled;
   $('composer-mode').hidden = !enabled;
   $('layer-options').hidden = !enabled;
@@ -51,7 +62,8 @@ function setLayerMode(enabled) {
 }
 
 function updateControls() {
-  refreshControls();
+  syncModelOptions(isOpenAI(), state.layerMode);
+  $('edit-markup').hidden = !state.markupID;
   const running = state.session?.turns.some(turn => turn.status === 'running') || false;
   $('generate-button').hidden = running;
   $('stop-button').hidden = !running;
@@ -61,13 +73,13 @@ function updateControls() {
   const configured = state.models.find(model => model.id === $('model').value)?.has_key;
   $('composer-hint').textContent = !configured ? '首次使用，请在右上角配置 API Key'
     : state.layerMode ? '选择 1 张 PNG / JPEG 原图 · 支持文字 OCR'
-    : state.references.length ? `${state.references.length} 张参考图 · 点击缩略图可局部编辑`
-    : '支持拖入或粘贴参考图';
+    : state.references.length ? `${state.references.length} 张参考图 · ${isOpenAI() ? '图 1 可添加局部标记' : '点击缩略图可局部编辑'}`
+    : isOpenAI() ? 'PNG / JPEG / WebP · 最多 16 张参考图' : '支持拖入或粘贴参考图';
 }
 
 function saveDraft() {
   drafts.set(state.session?.id || 'new', {
-    prompt: $('prompt').value, references: [...state.references], options: options(), model: $('model').value,
+    prompt: $('prompt').value, references: [...state.references], markupID: state.markupID, options: options(), model: $('model').value,
   });
 }
 
@@ -76,6 +88,7 @@ function restoreDraft(id) {
   $('prompt').value = draft?.prompt || '';
   state.references = draft?.references || [];
   if (draft?.model && state.models.some(model => model.id === draft.model)) $('model').value = draft.model;
+  state.markupID = isOpenAI() ? draft?.markupID || '' : '';
   applyOptions(draft?.options);
   renderAttachments(state.session, state.references);
   showError('composer-error');
@@ -89,7 +102,8 @@ async function refreshHistory() {
 
 function schedulePoll() {
   clearTimeout(pollTimer);
-  if (!state.sessions.some(session => session.running)) return;
+  const currentRunning = state.session?.turns.some(turn => turn.status === 'running');
+  if (!currentRunning && !state.sessions.some(session => session.running)) return;
   pollTimer = setTimeout(async () => {
     try {
       const version = navigationVersion;
@@ -139,8 +153,12 @@ async function ensureSession() {
 
 function addReference(asset) {
   if (state.references.includes(asset.id)) return true;
-  if (state.references.length === 10) {
-    toast('Seedream 5.5 每次最多使用 10 张参考图，请先移除一张。', true);
+  if (state.references.length >= referenceLimit()) {
+    toast(`当前模型每次最多使用 ${referenceLimit()} 张参考图，请先移除一张。`, true);
+    return false;
+  }
+  if (isOpenAI() && !['image/png', 'image/jpeg', 'image/webp'].includes(asset.mime)) {
+    toast('OpenAI 参考图需为 PNG、JPEG 或 WebP。', true);
     return false;
   }
   state.references.push(asset.id);
@@ -168,8 +186,12 @@ function decomposeImage(asset) {
 const viewer = createViewer({
   onEdit: editImage,
   onLayers: decomposeImage,
-  onSelection(asset, token) {
+  supportsLayers: () => !isOpenAI(),
+  selectionNotice: asset => isOpenAI() && state.references.length && state.references[0] !== asset.id
+    ? 'OpenAI 局部标记作用于图 1，请先将这张图片作为第一张参考图。' : '',
+  async onSelection(asset, token, selection) {
     if (!editImage(asset)) return false;
+    if (isOpenAI()) return addOpenAIMarkup(selection);
     const number = state.references.indexOf(asset.id) + 1;
     const input = $('prompt');
     const position = input.selectionStart;
@@ -180,22 +202,48 @@ const viewer = createViewer({
   },
 });
 
+async function uploadAsset(file) {
+  const session = await ensureSession();
+  const body = new FormData();
+  body.append('file', file);
+  const asset = await api(`/sessions/${session.id}/assets`, { method: 'POST', body });
+  state.session.assets.push(asset);
+  return asset;
+}
+
+async function addOpenAIMarkup(selection) {
+  if (state.busy) return false;
+  state.busy = true;
+  updateControls();
+  try {
+    const file = await createEditMarkup($('viewer-image'), selection);
+    const markup = await uploadAsset(file);
+    state.markupID = markup.id;
+    const input = $('prompt');
+    const text = selection.mode === 'point' ? '修改图 1 中红圈标记的对象：' : '修改图 1 中红框标记的区域：';
+    input.setRangeText(text, input.selectionStart, input.selectionEnd, 'end');
+    resizePrompt();
+    return true;
+  } finally { state.busy = false; updateControls(); }
+}
+
 async function uploadFiles(files) {
   if (!files.length || state.busy) return;
-  if (state.references.length + files.length > 10) {
-    showError('composer-error', 'Seedream 5.5 每次最多接受 10 张参考图。');
+  if (state.references.length + files.length > referenceLimit()) {
+    showError('composer-error', `当前模型每次最多接受 ${referenceLimit()} 张参考图。`);
+    return;
+  }
+  const maxBytes = (isOpenAI() ? 50 : 30) * 1024 * 1024;
+  if (files.some(file => isOpenAI() ? file.size >= maxBytes : file.size > maxBytes)) {
+    showError('composer-error', isOpenAI() ? 'OpenAI 单张参考图需小于 50 MiB。' : 'Seedream 单张参考图不能超过 30 MiB。');
     return;
   }
   state.busy = true;
   updateControls();
   showError('composer-error');
   try {
-    const session = await ensureSession();
     for (const file of files) {
-      const body = new FormData();
-      body.append('file', file);
-      const asset = await api(`/sessions/${session.id}/assets`, { method: 'POST', body });
-      state.session.assets.push(asset);
+      const asset = await uploadAsset(file);
       addReference(asset);
     }
     await refreshHistory();
@@ -218,6 +266,7 @@ async function generate(event) {
   const input = {
     model_id: $('model').value, prompt: $('prompt').value,
     reference_ids: [...state.references], options: options(),
+    ...(isOpenAI() && state.markupID ? { markup_id: state.markupID } : {}),
   };
   if (!input.prompt.trim() && !state.layerMode) { $('prompt').focus(); return; }
   state.busy = true;
@@ -228,6 +277,7 @@ async function generate(event) {
     state.session = await api(`/sessions/${session.id}/turns`, { method: 'POST', body: input });
     $('prompt').value = '';
     state.references = [];
+    state.markupID = '';
     saveDraft();
     renderAttachments(state.session, state.references);
     renderConversation(state.session, true);
@@ -246,6 +296,7 @@ function resizePrompt() {
 
 function openSettings() {
   $('model-configs').replaceChildren(...state.models.map(modelConfigCard));
+  initializeControls($('model-configs'));
   showError('settings-error');
   $('drawer-scrim').hidden = false;
   $('settings-drawer').classList.add('open');
@@ -268,6 +319,7 @@ async function saveSettings(event) {
     id: card.dataset.id,
     name: card.querySelector('[name=name]').value,
     model_name: card.querySelector('[name=model_name]').value,
+    provider: card.querySelector('[name=provider]').value,
     api_key: card.querySelector('[name=api_key]').value,
     url: card.querySelector('[name=url]').value,
   }));
@@ -279,7 +331,8 @@ async function saveSettings(event) {
     renderModels(state.models, $('model').value);
     closeSettings();
     $('model-configs').replaceChildren();
-    updateControls();
+    if (!isOpenAI()) state.markupID = '';
+    setLayerMode(state.layerMode);
     toast('模型配置已保存');
   } catch (error) { showError('settings-error', error.message); }
   finally { $('save-settings').disabled = false; }
@@ -293,6 +346,7 @@ function handleImageAction(event) {
     $('prompt').value = turn.prompt;
     state.references = [...(turn.reference_ids || [])];
     if (state.models.some(model => model.id === turn.model_id)) $('model').value = turn.model_id;
+    state.markupID = isOpenAI() ? turn.markup_id || '' : '';
     applyOptions(turn.options);
     renderAttachments(state.session, state.references);
     resizePrompt();
@@ -320,6 +374,7 @@ $('attachments').addEventListener('click', event => {
   const button = event.target.closest('[data-remove]');
   if (!button) return;
   const removedNumber = state.references.indexOf(button.dataset.remove) + 1;
+  if (removedNumber === 1) state.markupID = '';
   state.references = state.references.filter(id => id !== button.dataset.remove);
   $('prompt').value = $('prompt').value.replace(/图\s*(\d+)\s*<(point|bbox)>[^<]*<\/\2>/g, (token, number) => {
     if (Number(number) === removedNumber) return '';
@@ -340,10 +395,16 @@ $('advanced-toggle').onclick = () => {
   $('advanced-toggle').setAttribute('aria-expanded', String(!$('advanced-options').hidden));
 };
 $('background').onchange = () => {
-  if ($('background').value === 'transparent') $('format').value = 'png';
+  if ($('background').value === 'transparent' && $('format').value === 'jpeg') $('format').value = 'png';
   refreshControls();
 };
-$('model').onchange = () => { localStorage.setItem('pureagent-model', $('model').value); updateControls(); };
+$('model').onchange = () => {
+  localStorage.setItem('pureagent-model', $('model').value);
+  if (!isOpenAI()) state.markupID = '';
+  setLayerMode(state.layerMode);
+};
+$('image-size').onchange = updateControls;
+$('remove-markup').onclick = () => { state.markupID = ''; updateControls(); };
 $('stop-button').onclick = async () => {
   try {
     await api(`/sessions/${state.session.id}/cancel`, { method: 'POST' });
@@ -357,11 +418,12 @@ $('settings-form').addEventListener('submit', saveSettings);
 $('add-model').onclick = () => {
   const card = modelConfigCard();
   $('model-configs').append(card);
+  initializeControls(card);
   card.querySelector('input').focus();
 };
 $('model-configs').onclick = event => {
   const button = event.target.closest('.remove-model');
-  if (button) button.closest('.model-config').remove();
+  if (button) { button.closest('.model-config').remove(); refreshControls(); }
 };
 $('menu-button').onclick = () => $('sidebar').classList.toggle('open');
 document.addEventListener('click', event => {

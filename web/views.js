@@ -46,8 +46,11 @@ function turnCard(session, turn) {
   const options = turn.options;
   const references = turn.reference_ids || [];
   const time = new Date(turn.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  const tags = [options.layer_decomposition ? '图层拆分' : references.length ? '图像编辑' : '文字生图', options.resolution === 'auto' ? '自动分辨率' : options.resolution];
-  if (!options.layer_decomposition) tags.push(options.ratio === 'auto' ? '自动比例' : options.ratio);
+  const sizeLabel = options.size ? (options.size === 'auto' ? '自动尺寸' : options.size.replace('x', ' × '))
+    : options.resolution === 'auto' ? '自动分辨率' : options.resolution;
+  const tags = [options.layer_decomposition ? '图层拆分' : references.length ? '图像编辑' : '文字生图', sizeLabel];
+  if (!options.layer_decomposition && !options.size) tags.push(options.ratio === 'auto' ? '自动比例' : options.ratio);
+  if (turn.markup_id) tags.push('局部标记');
   if (options.background === 'transparent' && !options.layer_decomposition) tags.push('透明背景');
   const referenceHTML = references.map((id, index) => `<button data-view="${esc(id)}" aria-label="查看参考图 ${index + 1}"><img src="${assetURL(session.id, id)}" alt="参考图 ${index + 1}"><span>图 ${index + 1}</span></button>`).join('');
   const progress = turn.status === 'running' ? `<div class="generation-progress"><span class="spinner"></span><div>${options.layer_decomposition ? '正在拆解图层' : '正在把灵感变成画面'}<small>${options.layer_decomposition ? '图层完成后会逐张保存' : `已完成 ${turn.completed} / ${options.count} 张`} · 可以切换任务，结果会留在这里</small></div></div>` : '';
@@ -104,8 +107,34 @@ export function modelConfigCard(model = {}) {
   card.dataset.id = model.id || '';
   card.innerHTML = `<div class="model-config-heading"><span>${icon('sparkles')}模型连接</span><button type="button" class="icon-button remove-model" title="移除此配置" aria-label="移除此模型配置">${icon('trash')}</button></div>
     <label>显示名称<input name="name" value="${esc(model.name || '')}" placeholder="例如：Seedream 5.5"></label>
+    <label>接口类型<select name="provider" aria-label="接口类型"><option value="seedream">Seedream / AgentPlan</option><option value="openai">OpenAI Images · GPT Image 2.6</option></select></label>
     <label>MODEL_NAME<input name="model_name" value="${esc(model.model_name || '')}" placeholder="doubao-seedream-5.5" required spellcheck="false"></label>
     <label>API KEY<input name="api_key" type="password" autocomplete="new-password" placeholder="${model.has_key ? '已保存 · 留空保持不变' : '输入你的 API Key'}" spellcheck="false"></label>
-    <label>接口 URL<input name="url" type="url" value="${esc(model.url || 'https://ark.cn-beijing.volces.com/api/plan/v3/images/generations')}" placeholder="完整的图片生成接口地址" required spellcheck="false"></label>`;
+    <label>接口 URL<input name="url" type="url" value="${esc(model.url || 'https://ark.cn-beijing.volces.com/api/plan/v3/images/generations')}" placeholder="完整的图片生成接口地址" required spellcheck="false"></label>
+    <p class="model-protocol-note"></p>`;
+  const provider = card.querySelector('[name=provider]');
+  provider.value = model.provider || 'seedream';
+  const describe = () => {
+    card.querySelector('.model-protocol-note').textContent = provider.value === 'openai'
+      ? '模型：gpt-image-2.6-flare 或 gpt-image-2.6-sunburst。URL 可填写 /v1 基础地址或图片接口完整地址。'
+      : '使用 Seedream 图片生成接口，支持图层拆分与文字识别。';
+  };
+  provider.onchange = () => {
+    const openAI = provider.value === 'openai';
+    const name = card.querySelector('[name=model_name]');
+    const url = card.querySelector('[name=url]');
+    if (!name.value || /^(doubao-seedream-5\.5|gpt-image-2\.6-(flare|sunburst))$/.test(name.value)) {
+      name.value = openAI ? 'gpt-image-2.6-flare' : 'doubao-seedream-5.5';
+    }
+    if (!url.value || url.value === 'https://api.openai.com/v1' || url.value === 'https://ark.cn-beijing.volces.com/api/plan/v3/images/generations') {
+      url.value = openAI ? 'https://api.openai.com/v1' : 'https://ark.cn-beijing.volces.com/api/plan/v3/images/generations';
+    }
+    describe();
+    if (model.has_key) {
+      card.querySelector('[name=api_key]').placeholder = (model.provider || 'seedream') !== provider.value
+        ? '接口类型已变更，请填写此接口的 API Key' : '已保存 · 留空保持不变';
+    }
+  };
+  describe();
   return card;
 }

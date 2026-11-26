@@ -9,6 +9,7 @@ type Model struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	ModelName string `json:"model_name"`
+	Provider  string `json:"provider,omitempty"`
 	URL       string `json:"url"`
 	APIKey    string `json:"api_key,omitempty"`
 	HasKey    bool   `json:"has_key,omitempty"`
@@ -39,12 +40,16 @@ type Options struct {
 	LayerDecomposition bool   `json:"layer_decomposition"`
 	MaxImages          int    `json:"max_images"`
 	TextRecognition    bool   `json:"text_recognition"`
+	Size               string `json:"size,omitempty"`
+	Quality            string `json:"quality,omitempty"`
+	Complexity         string `json:"complexity,omitempty"`
 }
 
 type GenerationInput struct {
 	ModelID      string   `json:"model_id"`
 	Prompt       string   `json:"prompt"`
 	ReferenceIDs []string `json:"reference_ids"`
+	MarkupID     string   `json:"markup_id,omitempty"`
 	Options      Options  `json:"options"`
 }
 

@@ -40,7 +40,7 @@ func (s *Store) writeAsset(sessionID, name, kind string, original []byte) (Asset
 		mediaType = imageExtensions[extension]
 	}
 	if !strings.HasPrefix(mediaType, "image/") {
-		return Asset{}, fmt.Errorf("附件需要是 Seedream 支持的图片格式")
+		return Asset{}, fmt.Errorf("附件需要是支持的图片格式")
 	}
 	if imageExtensions[extension] == "" {
 		for candidate, candidateMIME := range imageExtensions {
@@ -85,9 +85,10 @@ func (a *App) upload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("支持 PNG、JPEG、WebP、BMP、TIFF、GIF、HEIC、HEIF 图片"))
 		return
 	}
-	original, err := io.ReadAll(io.LimitReader(part, maxReferenceBytes+1))
-	if err != nil || len(original) > maxReferenceBytes {
-		writeError(w, http.StatusBadRequest, fmt.Errorf("读取附件失败，单张图片不能超过 30 MB"))
+	// Store originals up to the largest supported provider limit; generation checks the selected provider.
+	original, err := io.ReadAll(io.LimitReader(part, openAIReferenceBytes+1))
+	if err != nil || len(original) > openAIReferenceBytes {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("读取附件失败，单张图片不能超过 50 MiB"))
 		return
 	}
 	a.store.mu.Lock()

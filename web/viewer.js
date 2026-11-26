@@ -66,6 +66,7 @@ export function createViewer(callbacks) {
     $('selection-toolbar').hidden = true;
     $('image-surface').classList.remove('selecting');
     resetSelection();
+    $('viewer-layers').hidden = !callbacks.supportsLayers();
     metadata(session.turns.flatMap(turn => turn.outputs).find(output => output.asset_id === asset.id));
     if (!$('image-dialog').open) $('image-dialog').showModal();
     if (localEdit) startSelection();
@@ -74,6 +75,8 @@ export function createViewer(callbacks) {
   function close() { $('image-dialog').close(); }
 
   function startSelection() {
+    const notice = callbacks.selectionNotice(asset);
+    if (notice) { toast(notice, true); return; }
     $('selection-toolbar').hidden = false;
     $('image-surface').classList.add('selecting');
     resetSelection();
@@ -138,11 +141,15 @@ export function createViewer(callbacks) {
     };
   }
 
-  $('insert-selection').onclick = () => {
+  $('insert-selection').onclick = async () => {
     const token = selection.mode === 'point'
       ? `<point>${selection.x1} ${selection.y1}</point>`
       : `<bbox>${selection.x1} ${selection.y1} ${selection.x2} ${selection.y2}</bbox>`;
-    if (callbacks.onSelection(asset, token)) close();
+    $('insert-selection').disabled = true;
+    try {
+      if (await callbacks.onSelection(asset, token, selection)) close();
+    } catch (error) { toast(error.message, true); }
+    finally { $('insert-selection').disabled = false; }
   };
   $('viewer-close').onclick = close;
   $('viewer-edit').onclick = () => { if (callbacks.onEdit(asset)) close(); };

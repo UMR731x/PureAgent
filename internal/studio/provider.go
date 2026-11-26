@@ -22,10 +22,19 @@ type providerImage struct {
 }
 
 type providerResponse struct {
-	Data      []providerImage `json:"data"`
-	Usage     json.RawMessage `json:"usage"`
-	Error     *APIError       `json:"error"`
-	RequestID string          `json:"request_id"`
+	Data       []providerImage `json:"data"`
+	Usage      json.RawMessage `json:"usage"`
+	Error      *APIError       `json:"error"`
+	RequestID  string          `json:"request_id"`
+	Format     string          `json:"output_format"`
+	Size       string          `json:"size"`
+	Background string          `json:"background"`
+}
+
+type generationRequest struct {
+	URL         string
+	ContentType string
+	Body        []byte
 }
 
 func normalizeOptions(options *Options) {
@@ -80,6 +89,9 @@ func imageSize(options Options) (string, error) {
 
 func validateInput(input *GenerationInput) error {
 	normalizeOptions(&input.Options)
+	if input.MarkupID != "" {
+		return fmt.Errorf("Seedream 使用输入框内的坐标进行局部编辑，请移除 OpenAI 局部标记")
+	}
 	o := input.Options
 	if o.Count < 1 {
 		return fmt.Errorf("生成数量至少为 1")
@@ -138,12 +150,12 @@ func requestBody(model Model, input GenerationInput, images []string) ([]byte, e
 	return json.Marshal(body)
 }
 
-func callProvider(ctx context.Context, client *http.Client, model Model, body []byte) (*providerResponse, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, model.URL, bytes.NewReader(body))
+func callProvider(ctx context.Context, client *http.Client, model Model, payload generationRequest) (*providerResponse, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, payload.URL, bytes.NewReader(payload.Body))
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Type", payload.ContentType)
 	request.Header.Set("Authorization", "Bearer "+model.APIKey)
 	response, err := client.Do(request)
 	if err != nil {

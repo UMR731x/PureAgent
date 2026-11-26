@@ -149,6 +149,9 @@ func prepareConfig(config *Config, previous Config) error {
 		model.ModelName = strings.TrimSpace(model.ModelName)
 		model.URL = strings.TrimSpace(model.URL)
 		model.APIKey = strings.TrimSpace(model.APIKey)
+		if model.Provider != "" && model.Provider != "seedream" && model.Provider != "openai" {
+			return fmt.Errorf("接口类型应为 Seedream 或 OpenAI Images")
+		}
 		endpoint, err := url.Parse(model.URL)
 		if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.User != nil {
 			return fmt.Errorf("模型 URL 需要是完整的 HTTP(S) 接口地址")
@@ -162,6 +165,9 @@ func prepareConfig(config *Config, previous Config) error {
 		if model.APIKey == "" {
 			for _, old := range previous.Models {
 				if old.ID == model.ID {
+					if (old.Provider == "openai") != (model.Provider == "openai") && old.APIKey != "" {
+						return fmt.Errorf("切换接口类型时请重新填写 API Key，避免把原密钥发送到另一个接口；原配置尚未修改")
+					}
 					model.APIKey = old.APIKey
 				}
 			}
