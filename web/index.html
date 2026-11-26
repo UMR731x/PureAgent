@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9f5">
+  <meta name="description" content="PureAgent，本地运行的纯粹图像创作工作台。">
+  <title>PureAgent · 图像工作台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='14' fill='%234b6043'/%3E%3Cpath d='M15 34V14h10a8 8 0 0 1 0 16h-5' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="workspace">
+    <aside class="sidebar" id="sidebar" aria-label="任务导航">
+      <a class="brand" href="/" aria-label="PureAgent 首页"><span class="brand-mark">P<span></span></span><span>PureAgent<small>IMAGE STUDIO</small></span></a>
+      <button class="new-task" id="new-task"><span data-icon="plus"></span>新建任务<span class="key-hint">N</span></button>
+      <div class="history-heading"><span>你的创作</span><span id="session-count">0</span></div>
+      <nav id="history" class="history" aria-label="历史任务"></nav>
+      <div class="sidebar-footer"><span class="local-orb" data-icon="folder"></span><div>本地工作空间<small><i class="status-dot"></i><span id="local-address">127.0.0.1:57123</span></small></div><span data-icon="lock" class="muted"></span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title"><button class="icon-button mobile-menu" id="menu-button" aria-label="展开任务导航"><span data-icon="menu"></span></button><span class="workspace-label">工作台</span><span class="breadcrumb">/</span><h1 id="session-title">新的灵感</h1></div>
+        <button class="settings-trigger" id="settings-open"><span data-icon="sliders"></span><span>模型设置</span><i class="config-dot" id="config-dot"></i></button>
+      </header>
+
+      <section class="studio" id="studio">
+        <div class="conversation" id="conversation" aria-live="polite" aria-label="生成记录"></div>
+        <div class="creation-home" id="creation-home">
+          <div class="hero-emblem" aria-hidden="true"><span class="emblem-orbit"></span><span data-icon="sparkles"></span></div>
+          <div class="eyebrow">LESS DISTRACTION. MORE IMAGINATION.</div>
+          <h2>让想象，<span>成为画面。</span></h2>
+          <p>从一句描述、一张参考图开始，专注每一次创作。</p>
+        </div>
+
+        <div class="composer-area" id="composer-area">
+          <form class="composer" id="composer">
+            <div class="composer-mode" id="composer-mode" hidden><span data-icon="layers"></span><strong>图层拆分</strong><span>从一张原图中提取独立元素</span><button type="button" class="text-button" id="exit-layers">返回创作</button></div>
+            <div id="attachments" class="attachments" hidden></div>
+            <label for="prompt" class="sr-only">图像描述或编辑指令</label>
+            <textarea id="prompt" placeholder="描述你脑海中的画面，或上传图片继续创作…" rows="3"></textarea>
+            <div class="composer-toolbar">
+              <div class="toolbar-controls">
+                <label class="model-control"><span data-icon="sparkles"></span><select id="model" aria-label="选择模型"><option value="seedream">Seedream 5.5</option></select><span data-icon="chevron" class="select-chevron"></span></label>
+                <span class="toolbar-divider"></span>
+                <button type="button" class="icon-button" id="upload-button" title="上传参考图" aria-label="上传参考图"><span data-icon="paperclip"></span></button>
+                <label class="option-control count-control" title="生成数量"><span data-icon="images"></span><input id="count" type="number" min="1" step="1" value="1" aria-label="生成图像数量"><span>张</span></label>
+                <label class="option-control"><span data-icon="resolution"></span><select id="resolution" aria-label="图像分辨率"><option value="auto">分辨率 · 自动</option><option value="1K">1K</option><option value="1.5K">1.5K</option><option value="2K">2K</option></select></label>
+                <label class="option-control"><span data-icon="ratio"></span><select id="ratio" aria-label="图像比例"><option value="auto">比例 · 自动</option><option>1:1</option><option>16:9</option><option>9:16</option><option>4:3</option><option>3:4</option><option>3:2</option><option>2:3</option><option>21:9</option><option>9:21</option><option>16:1</option><option>1:16</option></select></label>
+                <button type="button" class="icon-button advanced-toggle" id="advanced-toggle" title="更多生成选项" aria-label="更多生成选项" aria-expanded="false"><span data-icon="sliders"></span></button>
+              </div>
+              <button class="generate-button" id="generate-button" type="submit"><span>生成</span><span data-icon="arrow-up"></span></button>
+              <button class="stop-button" id="stop-button" type="button" hidden><span data-icon="stop"></span>停止</button>
+            </div>
+            <div class="advanced-options" id="advanced-options" hidden>
+              <label>背景<select id="background"><option value="auto">自动判断</option><option value="opaque">不透明 · 适合连续编辑</option><option value="transparent">透明背景 · RGBA</option></select></label>
+              <label>文件格式<select id="format"><option value="png">PNG</option><option value="jpeg">JPEG</option></select></label>
+              <label class="check-label"><input id="watermark" type="checkbox">AI 生成水印</label>
+              <button type="button" class="subtle-button" id="enable-layers"><span data-icon="layers"></span>图层拆分</button>
+            </div>
+            <div class="layer-options" id="layer-options" hidden>
+              <label>最多输出<input id="max-images" type="number" min="2" max="100" value="30"><span>张（含底图）</span></label>
+              <label class="check-label"><input id="text-recognition" type="checkbox" checked>识别文字与样式</label>
+              <span class="field-note">模型会依据图片内容决定实际图层数</span>
+            </div>
+            <div class="composer-error" id="composer-error" role="alert" hidden></div>
+          </form>
+          <div class="composer-footnote"><span id="composer-hint">支持拖入或粘贴参考图</span><span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 生成</span></div>
+        </div>
+
+        <div class="starter-grid" id="starter-grid">
+          <button class="starter-card" id="text-starter"><span class="starter-icon" data-icon="pen"></span><strong>把灵感画出来</strong><span>描述场景、风格与细节</span><span class="starter-arrow" data-icon="arrow-right"></span></button>
+          <button class="starter-card" id="image-starter"><span class="starter-icon" data-icon="image"></span><strong>让图片焕新</strong><span>参考、融合，或继续编辑</span><span class="starter-arrow" data-icon="arrow-right"></span></button>
+          <button class="starter-card" id="layer-starter"><span class="starter-icon" data-icon="layers"></span><strong>拆解每一层创意</strong><span>提取图层、文字和背景</span><span class="starter-arrow" data-icon="arrow-right"></span></button>
+        </div>
+        <div class="home-footer" id="home-footer"><span class="tiny-spark">✳</span> 纯粹的工具，自由的想象。</div>
+      </section>
+    </main>
+  </div>
+
+  <div class="drawer-scrim" id="drawer-scrim" hidden></div>
+  <aside class="settings-drawer" id="settings-drawer" aria-label="模型设置" aria-hidden="true" inert>
+    <div class="drawer-heading"><div class="eyebrow">YOUR CONNECTIONS</div><div><h2>模型设置</h2><button class="icon-button" id="settings-close" aria-label="关闭模型设置"><span data-icon="x"></span></button></div><p>连接你的模型，让创意有处可去。</p></div>
+    <form id="settings-form" class="settings-form">
+      <div id="model-configs"></div>
+      <button type="button" id="add-model" class="add-model"><span data-icon="plus"></span>添加模型配置</button>
+      <p class="settings-note"><span data-icon="lock"></span>密钥仅保存在本机，用于向你配置的接口发起请求。</p>
+      <div class="settings-error" id="settings-error" role="alert" hidden></div>
+      <div class="settings-bottom"><button class="primary-button" type="submit" id="save-settings">保存配置<span data-icon="check"></span></button></div>
+    </form>
+  </aside>
+
+  <dialog id="image-dialog" class="image-dialog">
+    <div class="viewer-header"><div><strong id="viewer-title">查看原图</strong><span id="viewer-dimensions"></span></div><button class="icon-button" id="viewer-close" aria-label="关闭图片"><span data-icon="x"></span></button></div>
+    <div class="viewer-body"><div class="viewer-stage" id="viewer-stage"><div class="image-surface" id="image-surface"><img id="viewer-image" alt="图像原图" draggable="false"><div id="selection-overlay" class="selection-overlay"></div></div></div><aside class="image-metadata" id="image-metadata" hidden></aside></div>
+    <div class="selection-toolbar" id="selection-toolbar" hidden><div class="segmented"><button id="select-box" class="active" type="button"><span data-icon="select"></span>框选</button><button id="select-point" type="button"><span data-icon="point"></span>点选</button></div><span id="selection-hint">在图片上拖动选择编辑区域</span><button class="primary-button" id="insert-selection" disabled>加入编辑指令<span data-icon="arrow-right"></span></button></div>
+    <div class="viewer-toolbar"><div><button class="subtle-button" id="viewer-edit"><span data-icon="pen"></span>编辑图片</button><button class="subtle-button" id="viewer-select"><span data-icon="select"></span>局部编辑</button><button class="subtle-button" id="viewer-layers"><span data-icon="layers"></span>拆分图层</button></div><div><button class="icon-button" id="viewer-zoom" title="原始尺寸 / 适应窗口" aria-label="切换原始尺寸"><span data-icon="zoom"></span></button><button class="subtle-button" id="viewer-copy"><span data-icon="copy"></span>复制图片</button><a class="primary-button" id="viewer-download" download><span data-icon="download"></span>下载原图</a></div></div>
+  </dialog>
+
+  <input type="file" id="file-input" multiple accept="image/png,image/jpeg,image/webp,image/bmp,image/tiff,image/gif,image/heic,image/heif,.heic,.heif" hidden>
+  <div class="drop-overlay" id="drop-overlay" hidden><span data-icon="image"></span><strong>放下图片，开始新的创作</strong><span>原图将保存在当前任务中</span></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

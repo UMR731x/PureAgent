@@ -1,0 +1,55 @@
+name: Build PureAgent
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.27'
+          cache: false
+
+      - name: Test
+        run: go test -race ./internal/studio
+
+      - name: Check Go code
+        run: go vet ./...
+
+      - name: Check browser JavaScript
+        run: |
+          for source in web/*.js; do
+            node --input-type=module --check < "$source"
+          done
+
+      - name: Build Windows and Linux packages
+        run: |
+          mkdir -p dist/windows/bin dist/linux/bin
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o dist/windows/bin/PureAgent.exe .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/linux/bin/pureagent .
+          cp start.cmd README.md dist/windows/
+          cp README.md dist/linux/
+          tar -czf dist/PureAgent-linux-amd64.tar.gz -C dist/linux .
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v7
+        with:
+          name: PureAgent-windows-amd64
+          path: dist/windows/
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v7
+        with:
+          name: PureAgent-linux-amd64
+          path: dist/PureAgent-linux-amd64.tar.gz
