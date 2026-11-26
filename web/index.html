@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f8f9f5">
+  <script src="/appearance.js"></script>
   <meta name="description" content="PureAgent，本地运行的纯粹图像创作工作台。">
   <title>PureAgent · 图像工作台</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -11,6 +12,7 @@
   <link rel="stylesheet" href="/controls.css">
   <link rel="stylesheet" href="/usage.css">
   <link rel="stylesheet" href="/history.css">
+  <link rel="stylesheet" href="/appearance.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -36,7 +38,14 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-title"><button class="icon-button mobile-menu" id="menu-button" aria-label="展开任务导航"><span data-icon="menu"></span></button><span class="workspace-label">工作台</span><span class="breadcrumb">/</span><h1 id="session-title">新的灵感</h1></div>
-        <div class="topbar-actions"><button class="settings-trigger" id="usage-open"><span data-icon="gauge"></span><span>额度</span></button><button class="settings-trigger" id="settings-open"><span data-icon="sliders"></span><span>模型设置</span><i class="config-dot" id="config-dot"></i></button></div>
+        <div class="topbar-actions">
+          <label class="appearance-picker" title="切换外观">
+            <span class="appearance-symbol" aria-hidden="true"><span data-appearance-icon="light" data-icon="sun"></span><span data-appearance-icon="dark" data-icon="moon"></span><span data-appearance-icon="system" data-icon="monitor"></span></span>
+            <select id="appearance" aria-label="外观"><option value="light">日间模式</option><option value="dark">夜间模式</option><option value="system">跟随系统</option></select>
+          </label>
+          <button class="settings-trigger" id="usage-open"><span data-icon="gauge"></span><span>额度</span></button>
+          <button class="settings-trigger" id="settings-open"><span data-icon="sliders"></span><span>模型设置</span><i class="config-dot" id="config-dot"></i></button>
+        </div>
       </header>
 
       <section class="studio" id="studio">

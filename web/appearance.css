@@ -1,0 +1,118 @@
+.appearance-picker { position: relative; display: inline-flex; font-size: 14px; flex-shrink: 0; }
+.appearance-picker .select-trigger { padding: 9px 10px 9px 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff8; }
+.appearance-picker .select-trigger:hover, .appearance-picker .select-trigger[aria-expanded=true] { background: var(--surface); border-color: #cbd5c1; }
+.appearance-symbol { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--green); }
+.appearance-symbol svg { display: block; width: 16px; height: 16px; }
+[data-appearance-icon] { display: none; }
+:root[data-appearance=light] [data-appearance-icon=light],
+:root[data-appearance=dark] [data-appearance-icon=dark],
+:root[data-appearance=system] [data-appearance-icon=system] { display: block; }
+@media (max-width: 700px) {
+  .appearance-picker .select-trigger { width: 36px; height: 36px; padding: 0; }
+  .appearance-picker .select-trigger > span, .appearance-picker .select-trigger > svg { display: none; }
+  .appearance-symbol { left: 10px; }
+}
+
+:root[data-theme=dark] {
+  color-scheme: dark;
+  --canvas: #141b17;
+  --surface: #1e2821;
+  --sidebar: #19211b;
+  --ink: #e1e8db;
+  --muted: #98a690;
+  --line: #344334;
+  --green: #a6bf90;
+  --green-dark: #d2e3bf;
+  --green-light: #2a3829;
+  --red: #e7a296;
+  --night-raised: #253128;
+  --night-secondary: #c0ccb5;
+  --night-error: #352724;
+  --night-error-line: #634038;
+  scrollbar-color: #485b42 var(--canvas);
+}
+
+/* Text retains its hierarchy instead of inheriting the light palette's pale accents. */
+[data-theme=dark] :is(.brand small, .history-heading, .history-group, .history-empty,
+  .sidebar-footer small, .workspace-label, .eyebrow, .creation-home p, .composer-footnote,
+  .starter-card > span:not(.starter-icon, .starter-arrow), .home-footer, .field-note,
+  .advanced-options label, .composer-mode, .turn-heading, .tag, .image-card-name,
+  .generation-progress small, .turn-footer, .turn-details, .drawer-heading p,
+  .model-config label, .settings-note, .viewer-header span, .selection-toolbar > span,
+  .segmented button, .image-metadata p, .image-metadata pre, .drop-overlay span,
+  .update-button small, .update-area p, .model-protocol-note, .usage-model small,
+  .usage-scope, .usage-notice, .usage-credentials p, .usage-quota > div > span,
+  .usage-quota p span, .usage-quota small, .usage-period small, .usage-checked,
+  .usage-metric small, .usage-loading, .usage-credentials summary span, .history-delete-dialog p) { color: var(--muted); }
+[data-theme=dark] :is(.history-item, .icon-button, .option-control, .subtle-button,
+  .select-option, .advanced-options .select-trigger, .size-options, .update-button,
+  .turn-heading strong, .model-config-heading, .image-metadata h3) { color: var(--night-secondary); }
+[data-theme=dark] .turn-prompt { color: var(--ink); }
+[data-theme=dark] :is(.creation-home h2 span, .model-control > svg, .starter-icon,
+  .tiny-spark, .number-control > button, .usage-quota strong) { color: var(--green); }
+[data-theme=dark] :is(.breadcrumb, .starter-arrow, .select-trigger > svg) { color: #7e9175; }
+[data-theme=dark] :is(.composer textarea, .model-config input)::placeholder { color: #8d9c85; }
+
+/* Page surfaces, controls and focus states. */
+[data-theme=dark] .new-task { background: #2a3b26; border-color: #41543a; }
+[data-theme=dark] .new-task:hover { background: #33482c; }
+[data-theme=dark] .key-hint { color: var(--muted); border-color: #52634a; }
+[data-theme=dark] :is(.history-row.active, .settings-trigger, .appearance-picker .select-trigger,
+  .model-config, .image-card, .image-metadata, .attachment-remove, .select-menu,
+  .advanced-options .select-trigger, .model-config .select-trigger, .history-delete-list,
+  .history-delete-actions .subtle-button) { background: var(--surface); }
+[data-theme=dark] :is(.history-row:hover, .subtle-button:hover, .settings-trigger:hover,
+  .appearance-picker .select-trigger:hover, .appearance-picker .select-trigger[aria-expanded=true],
+  .number-control > button:hover:not(:disabled), .update-button:hover:not(:disabled),
+  .history-heading .text-button:hover:not(:disabled)) { background: var(--green-light); }
+[data-theme=dark] .history-row.active .history-item { color: var(--green-dark); }
+[data-theme=dark] .history-row.selected { background: #30432b; }
+[data-theme=dark] :is(.sidebar-footer, .topbar, .composer, .starter-card, .composer-mode,
+  .attachment img, .model-config input, .image-dialog, .select-menu, .usage-credentials input,
+  .history-selection, .usage-quota, .generation-progress, .settings-trigger:hover,
+  .appearance-picker .select-trigger:hover, .appearance-picker .select-trigger[aria-expanded=true]) { border-color: var(--line); }
+[data-theme=dark] .composer:focus-within { border-color: #809b6b; }
+[data-theme=dark] .starter-card { background: #1b251e; }
+[data-theme=dark] .starter-card:hover { background: var(--green-light); border-color: #586e49; }
+[data-theme=dark] :is(.local-orb, .turn-badge) { background: var(--green-light); color: var(--green); }
+[data-theme=dark] :is(.advanced-options, .layer-options, .size-options, .number-control,
+  .turn-details pre, .model-config input, .usage-credentials input, .history-selection,
+  .attachment img, .segmented) { background: #1a231d; }
+[data-theme=dark] :is(.composer-mode, .tag, .generation-progress, .selection-toolbar,
+  .ocr-text, .usage-quota) { background: #243122; }
+[data-theme=dark] .generation-progress { color: var(--night-secondary); }
+[data-theme=dark] .segmented button.active { background: var(--night-raised); color: var(--green-dark); }
+[data-theme=dark] .add-model { color: var(--night-secondary); border-color: #485b40; }
+[data-theme=dark] .select-option:is(.active, [aria-selected=true]),
+[data-theme=dark] .select-trigger:is(:hover, [aria-expanded=true]) { color: var(--green-dark); }
+[data-theme=dark] :focus-visible { outline-color: #a6bf90; }
+[data-theme=dark] input[type=checkbox] { background: #182019; border-color: #66795a; }
+[data-theme=dark] input[type=checkbox]:checked,
+[data-theme=dark] .history-selection input:indeterminate { background: var(--green); border-color: var(--green); }
+[data-theme=dark] input[type=checkbox]:checked::after { border-color: #182412; }
+[data-theme=dark] .history-selection input:indeterminate::after { background: #182412; }
+[data-theme=dark] :is(.generate-button, .primary-button) { background: #a6bf90; color: #192312; }
+[data-theme=dark] :is(.generate-button, .primary-button):hover { background: #bdd4a7; }
+[data-theme=dark] .spinner { border-color: var(--line); border-top-color: var(--green); }
+[data-theme=dark] .usage-track { background: #3b4c32; }
+[data-theme=dark] .usage-track span { background: var(--green); }
+
+/* Drawers and dialogs share the same palette as the workbench. */
+[data-theme=dark] :is(.settings-drawer, .image-dialog, .usage-dialog) { background: var(--canvas); }
+[data-theme=dark] .settings-bottom { background: #141b17ed; }
+[data-theme=dark] :is(.usage-dialog, .select-menu) { scrollbar-color: #485b42 transparent; box-shadow: 0 16px 60px #0005; }
+[data-theme=dark] :is(.usage-dialog, .history-delete-dialog)::backdrop { background: #050b08a6; }
+[data-theme=dark] .drawer-scrim { background: #050b0866; }
+[data-theme=dark] .drop-overlay { background: #1a2a1bf0; border-color: #94ab74; }
+[data-theme=dark] :is(.attachment-label, .turn-references span) { background: #172017eb; color: var(--ink); }
+[data-theme=dark] .image-card-preview { background-color: #202a23; background-image: repeating-conic-gradient(#2a362d 0% 25%, transparent 0% 50%); }
+[data-theme=dark] .image-surface { background: repeating-conic-gradient(#263229 0% 25%, #1c251f 0% 50%) 0 0 / 20px 20px; }
+
+/* Destructive actions and provider errors remain distinct in the dark palette. */
+[data-theme=dark] :is(.composer-error, .settings-error, .turn-error, .usage-error,
+  .stop-button, .history-delete-emblem, .history-delete-selected,
+  .history-remove:hover:not(:disabled)) { background: var(--night-error); color: var(--red); border-color: var(--night-error-line); }
+[data-theme=dark] .history-delete-selected:hover:not(:disabled) { background: #49302b; }
+[data-theme=dark] .history-delete-confirm { background: #8e433b; color: #fff; }
+[data-theme=dark] .history-delete-confirm:hover:not(:disabled) { background: #a55044; }
+[data-theme=dark] .update-area p.error { color: var(--red); }

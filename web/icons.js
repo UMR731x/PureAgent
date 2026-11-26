@@ -1,4 +1,7 @@
 const paths = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
+  moon: '<path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/>',
+  monitor: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v4m-4 0h8"/>',
   gauge: '<path d="M4 18a9 9 0 1 1 16 0H4Z"/><path d="m12 13 4-5M6 13h1m10 0h1M12 5v1"/><circle cx="12" cy="13" r="1"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   x: '<path d="m6 6 12 12M6 18 18 6"/>',
