@@ -53,7 +53,6 @@ func newTrayMenu(dpi int32) *trayMenu {
 		{id: menuHeading, label: "PureAgent"},
 		{id: menuWorkspace, label: "打开工作台"},
 		{id: menuDirectory, label: "打开数据目录"},
-		{id: menuCopyURL, label: "复制访问地址"},
 		{id: menuDivider},
 		{id: menuExit, label: "退出 PureAgent"},
 		{id: menuBottom},
@@ -223,9 +222,6 @@ func (menu *trayMenu) drawGlyph(dc uintptr, command uint32, left, top int32, col
 		stroke(point{2, 8}, point{22, 8})
 	case menuDirectory:
 		stroke(point{3, 8}, point{3, 5}, point{9, 5}, point{12, 8}, point{21, 8}, point{21, 20}, point{3, 20}, point{3, 8})
-	case menuCopyURL:
-		box(8, 8, 21, 21)
-		stroke(point{15, 8}, point{15, 3}, point{3, 3}, point{3, 15}, point{8, 15})
 	case menuExit:
 		drawArc.Call(dc, uintptr(left+menu.pixels(4)), uintptr(top+menu.pixels(4)), uintptr(left+menu.pixels(21)), uintptr(top+menu.pixels(21)),
 			uintptr(left+menu.pixels(8)), uintptr(top+menu.pixels(5)), uintptr(left+menu.pixels(17)), uintptr(top+menu.pixels(5)))

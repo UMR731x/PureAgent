@@ -15,6 +15,12 @@ func Run(ctx context.Context, options Options) error {
 	mygo.App.SetName("PureAgent")
 	mygo.App.SetVersion(options.Version)
 	mygo.App.SetMenu(nil)
+	resources := &workspaceResources{handler: options.Resources}
+	defer resources.close()
+	if err := mygo.Protocol.Handle("mygo", resources); err != nil {
+		return err
+	}
+	defer mygo.Protocol.Unhandle("mygo")
 	if !mygo.WebViewAvailable() {
 		return fmt.Errorf("请先安装 Microsoft Edge WebView2 运行时，再启动 PureAgent：https://developer.microsoft.com/microsoft-edge/webview2")
 	}
@@ -37,26 +43,29 @@ func Run(ctx context.Context, options Options) error {
 	done := make(chan struct{})
 	defer close(done)
 	mygo.App.WhenReady(func() {
-		window := mygo.NewWindow(mygo.WindowOptions{
-			Title: "PureAgent", Width: 1280, Height: 860, Hidden: true,
-		})
-		if err := window.SetIcon(icon); err != nil {
-			fail(err)
-			return
-		}
-		window.OnClose(func(event *mygo.CloseEvent) {
-			if !quitting {
-				event.PreventDefault()
-				window.Hide()
+		readLegacyPreferences(options.LegacyOrigin, fail, func(preload string) {
+			window := mygo.NewWindow(mygo.WindowOptions{
+				Title: "PureAgent", Width: 1280, Height: 860, Hidden: true,
+				Page: mygo.PageOptions{PreloadScript: preload},
+			})
+			if err := window.SetIcon(icon); err != nil {
+				fail(err)
+				return
 			}
+			window.OnClose(func(event *mygo.CloseEvent) {
+				if !quitting {
+					event.PreventDefault()
+					window.Hide()
+				}
+			})
+			stopTray, err = startTray(options, func() { go showWorkspace(window) }, mygo.App.Quit)
+			if err != nil {
+				fail(err)
+				return
+			}
+			loadWorkspace(window, options, fail)
+			go waitForShutdown(ctx, done, window, options.Restart)
 		})
-		stopTray, err = startTray(options, func() { go showWorkspace(window) }, mygo.App.Quit)
-		if err != nil {
-			fail(err)
-			return
-		}
-		loadWorkspace(window, options, fail)
-		go waitForShutdown(ctx, done, window, options.Restart)
 	})
 	err = mygo.App.Run()
 	if stopTray != nil {
@@ -95,7 +104,7 @@ func loadWorkspace(window *mygo.Window, options Options, fail func(error)) {
 			fail(fmt.Errorf("无法启动 WebView2：%w", err))
 			return
 		}
-		if err := window.Page().LoadURL(options.URL); err != nil {
+		if err := window.Page().LoadURL("mygo://localhost/"); err != nil {
 			fail(err)
 		}
 	}()

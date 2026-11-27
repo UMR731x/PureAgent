@@ -60,7 +60,7 @@ func (a *App) ResumeAfterUpdate() {
 	a.store.mu.Unlock()
 }
 
-func (a *App) Handler(frontend fs.FS, updates http.Handler) http.Handler {
+func (a *App) Handler(frontend fs.FS, updates http.Handler, allowedOrigin string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/config", a.getConfig)
 	mux.HandleFunc("PUT /api/config", a.putConfig)
@@ -88,7 +88,7 @@ func (a *App) Handler(frontend fs.FS, updates http.Handler) http.Handler {
 			writeError(w, http.StatusForbidden, fmt.Errorf("PureAgent 仅接受本机访问"))
 			return
 		}
-		if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
+		if origin := r.Header.Get("Origin"); origin != "" && origin != allowedOrigin {
 			writeError(w, http.StatusForbidden, fmt.Errorf("不允许其他网站访问本地任务或配置"))
 			return
 		}

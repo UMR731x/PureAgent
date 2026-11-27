@@ -12,7 +12,9 @@ func Run(context.Context, Options) error {
 	return fmt.Errorf("PureAgent 桌面客户端仅支持 Windows")
 }
 
-func Activate(string) bool { return false }
+func AcquireWorkspace(string) (func(), bool, error) {
+	return nil, false, fmt.Errorf("PureAgent 桌面客户端仅支持 Windows")
+}
 
 func DefaultDataDirectory() (string, error) { return "data", nil }
 

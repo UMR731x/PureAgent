@@ -27,14 +27,6 @@ var (
 	getCursorPosition   = user32.NewProc("GetCursorPos")
 	destroyIcon         = user32.NewProc("DestroyIcon")
 	messageBox          = user32.NewProc("MessageBoxW")
-	openClipboard       = user32.NewProc("OpenClipboard")
-	closeClipboard      = user32.NewProc("CloseClipboard")
-	emptyClipboard      = user32.NewProc("EmptyClipboard")
-	setClipboardData    = user32.NewProc("SetClipboardData")
-	globalAlloc         = kernel32.NewProc("GlobalAlloc")
-	globalLock          = kernel32.NewProc("GlobalLock")
-	globalUnlock        = kernel32.NewProc("GlobalUnlock")
-	globalFree          = kernel32.NewProc("GlobalFree")
 	moveMemory          = kernel32.NewProc("RtlMoveMemory")
 	getModuleHandle     = kernel32.NewProc("GetModuleHandleW")
 	registerMessage     = user32.NewProc("RegisterWindowMessageW")
@@ -51,7 +43,6 @@ const (
 	openWorkspace = 0x8002
 	menuWorkspace = 1
 	menuDirectory = 2
-	menuCopyURL   = 3
 	menuExit      = 4
 )
 

@@ -77,16 +77,16 @@ func TestUpdateEndpointUsesLocalOriginProtection(t *testing.T) {
 	handler := app.Handler(fstest.MapFS{}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		w.WriteHeader(http.StatusAccepted)
-	}))
-	for _, origin := range []string{"https://unrelated.example", "http://127.0.0.1:57123"} {
-		request := httptest.NewRequest("POST", "http://127.0.0.1:57123/api/update", nil)
+	}), "http://mygo.localhost")
+	for _, origin := range []string{"https://unrelated.example", "http://mygo.localhost"} {
+		request := httptest.NewRequest("POST", "mygo://localhost/api/update", nil)
 		request.Header.Set("Origin", origin)
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		if origin == "https://unrelated.example" && response.Code != http.StatusForbidden {
 			t.Fatal("another website could trigger a client update")
 		}
-		if origin == "http://127.0.0.1:57123" && response.Code != http.StatusAccepted {
+		if origin == "http://mygo.localhost" && response.Code != http.StatusAccepted {
 			t.Fatal("the local UI could not trigger an update")
 		}
 	}

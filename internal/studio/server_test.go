@@ -37,9 +37,9 @@ func localRequest(t *testing.T, app *App, method, path string, body any) *httpte
 			t.Fatal(err)
 		}
 	}
-	request := httptest.NewRequest(method, "http://127.0.0.1:57123"+path, &encoded)
+	request := httptest.NewRequest(method, "mygo://localhost"+path, &encoded)
 	response := httptest.NewRecorder()
-	app.Handler(fstest.MapFS{}, nil).ServeHTTP(response, request)
+	app.Handler(fstest.MapFS{}, nil, "http://mygo.localhost").ServeHTTP(response, request)
 	return response
 }
 
@@ -86,10 +86,11 @@ func TestOriginalImageUploadReferenceOutputAndDownload(t *testing.T) {
 	part, _ := writer.CreateFormFile("file", "参考原图.png")
 	part.Write(original)
 	writer.Close()
-	request := httptest.NewRequest("POST", "http://127.0.0.1:57123/api/sessions/"+session.ID+"/assets", &multipartBody)
+	request := httptest.NewRequest("POST", "mygo://localhost/api/sessions/"+session.ID+"/assets", &multipartBody)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
+	request.Header.Set("Origin", "http://mygo.localhost")
 	response := httptest.NewRecorder()
-	app.Handler(fstest.MapFS{}, nil).ServeHTTP(response, request)
+	app.Handler(fstest.MapFS{}, nil, "http://mygo.localhost").ServeHTTP(response, request)
 	if response.Code != http.StatusCreated {
 		t.Fatal(response.Body.String())
 	}
@@ -188,10 +189,10 @@ func TestLocalOriginAndConfigKeyRetention(t *testing.T) {
 	if saved.Models[0].APIKey != "test-secret" {
 		t.Fatal("empty key update erased the stored key")
 	}
-	request := httptest.NewRequest("POST", "http://127.0.0.1:57123/api/sessions", nil)
+	request := httptest.NewRequest("POST", "mygo://localhost/api/sessions", nil)
 	request.Header.Set("Origin", "https://unrelated.example")
 	response = httptest.NewRecorder()
-	app.Handler(fstest.MapFS{}, nil).ServeHTTP(response, request)
+	app.Handler(fstest.MapFS{}, nil, "http://mygo.localhost").ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatal("cross-origin local data modification was accepted")
 	}

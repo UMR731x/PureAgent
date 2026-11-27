@@ -4,9 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
+	"path/filepath"
 
 	"pureagent/internal/desktop"
 	"pureagent/internal/studio"
@@ -46,7 +45,7 @@ func run() error {
 		}
 		arguments = restarted.Arguments
 	}
-	port := flag.Int("port", 57123, "local HTTP port")
+	legacyPort := flag.Int("port", 57123, "deprecated; only used to recover old UI preferences, no port is opened")
 	directory := flag.String("data", "data", "directory for configuration and sessions")
 	if err := flag.CommandLine.Parse(arguments); err != nil {
 		return err
@@ -60,16 +59,16 @@ func run() error {
 			return err
 		}
 	}
-	address := fmt.Sprintf("127.0.0.1:%d", *port)
-	listener, err := net.Listen("tcp", address)
+	absolute, err := filepath.Abs(*directory)
 	if err != nil {
-		if desktop.Activate("http://" + address) {
-			return nil
-		}
 		return err
 	}
-	defer listener.Close()
-	app, err := studio.New(*directory)
+	release, running, err := desktop.AcquireWorkspace(absolute)
+	if err != nil || running {
+		return err
+	}
+	defer release()
+	app, err := studio.New(absolute)
 	if err != nil {
 		return err
 	}
@@ -89,42 +88,15 @@ func run() error {
 	if restarted != nil && restarted.Failure != "" {
 		updater.Failure(restarted.Failure)
 	}
-	server := &http.Server{
-		Addr:        address,
-		Handler:     app.Handler(web.Files, updater.Handler()),
-		BaseContext: func(net.Listener) context.Context { return ctx },
-	}
-	server.RegisterOnShutdown(cancel)
-	fmt.Printf("数据目录：%s\n", app.Directory())
-	return serve(server, listener, app.Directory(), restarted, restartRequested, updater.Failure)
-}
-
-func serve(server *http.Server, listener net.Listener, directory string, restarted *update.Restart, restartRequested <-chan struct{}, reportUpdateFailure func(string)) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	finished := make(chan error, 1)
-	go func() {
-		finished <- server.Serve(listener)
-		cancel()
-	}()
-	defer server.Close()
-	err := desktop.Run(ctx, desktop.Options{
-		URL: "http://" + server.Addr, Directory: directory, Version: version, Restart: restartRequested,
+	return desktop.Run(ctx, desktop.Options{
+		Directory: app.Directory(), Version: version, Restart: restartRequested,
+		LegacyOrigin: fmt.Sprintf("http://127.0.0.1:%d/", *legacyPort),
+		Resources:    app.Handler(web.Files, updater.Handler(), desktop.WorkspaceOrigin),
 		Ready: func() error {
 			if restarted != nil {
-				return restarted.Ready(reportUpdateFailure)
+				return restarted.Ready(updater.Failure)
 			}
 			return nil
 		},
 	})
-	if err != nil {
-		return err
-	}
-	select {
-	case err := <-finished:
-		return err
-	default:
-	}
-	// Finish uploads and JSON writes before exiting. Update-triggered shutdown has already drained image jobs.
-	return server.Shutdown(context.Background())
 }

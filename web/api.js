@@ -8,7 +8,13 @@ export function escapeHTML(value = '') {
 
 export async function api(path, options = {}) {
   const request = { ...options };
-  if (request.body && !(request.body instanceof FormData)) {
+  if (request.body instanceof FormData) {
+    // Materialize disk-backed files before WebView2's in-process resource bridge reads the body.
+    // Keep the original boundary: Blob.type would lowercase it and break multipart parsing.
+    const encoded = new Response(request.body);
+    request.headers = { 'Content-Type': encoded.headers.get('Content-Type') };
+    request.body = await encoded.arrayBuffer();
+  } else if (request.body) {
     request.headers = { 'Content-Type': 'application/json' };
     request.body = JSON.stringify(request.body);
   }

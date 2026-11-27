@@ -11,7 +11,6 @@ import { HistoryView } from './history.js';
 
 hydrateIcons();
 initializeControls();
-$('local-address').textContent = location.host;
 
 const state = { session: null, sessions: [], models: [], references: [], referenceTurnID: '', markupID: '', layerMode: false, busy: false };
 const drafts = new Map();

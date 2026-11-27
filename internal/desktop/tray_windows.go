@@ -36,8 +36,8 @@ func DefaultDataDirectory() (string, error) {
 	return filepath.Join(directory, "data"), nil
 }
 
-func Activate(address string) bool {
-	window, _, _ := findWindow.Call(uintptr(unsafe.Pointer(wide(trayClass))), uintptr(unsafe.Pointer(wide(address))))
+func Activate(directory string) bool {
+	window, _, _ := findWindow.Call(uintptr(unsafe.Pointer(wide(trayClass))), uintptr(unsafe.Pointer(wide(directory))))
 	if window == 0 {
 		return false
 	}
@@ -78,7 +78,7 @@ func (tray *trayWindow) run(ready chan<- error) {
 	}
 	defer unregisterClass.Call(uintptr(unsafe.Pointer(class.ClassName)), instance)
 	window, _, err := createWindow.Call(0, uintptr(unsafe.Pointer(class.ClassName)),
-		uintptr(unsafe.Pointer(wide(tray.options.URL))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
+		uintptr(unsafe.Pointer(wide(tray.options.Directory))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
 	if window == 0 {
 		ready <- fmt.Errorf("创建托盘窗口失败：%w", err)
 		return
@@ -169,10 +169,6 @@ func (tray *trayWindow) command(command uintptr) {
 		tray.openWorkspace()
 	case menuDirectory:
 		tray.open(tray.options.Directory)
-	case menuCopyURL:
-		if err := tray.copyURL(); err != nil {
-			ReportError(err)
-		}
 	case menuExit:
 		tray.exit()
 	}
@@ -183,34 +179,6 @@ func (tray *trayWindow) open(target string) {
 	if result <= 32 {
 		ReportError(fmt.Errorf("无法打开 %s（Windows 错误 %d）", target, result))
 	}
-}
-
-func (tray *trayWindow) copyURL() error {
-	if ok, _, err := openClipboard.Call(tray.window); ok == 0 {
-		return fmt.Errorf("无法打开剪贴板：%w", err)
-	}
-	defer closeClipboard.Call()
-	text := syscall.StringToUTF16(tray.options.URL)
-	memory, _, err := globalAlloc.Call(2, uintptr(len(text)*2))
-	if memory == 0 {
-		return err
-	}
-	address, _, err := globalLock.Call(memory)
-	if address == 0 {
-		globalFree.Call(memory)
-		return err
-	}
-	moveMemory.Call(address, uintptr(unsafe.Pointer(&text[0])), uintptr(len(text)*2))
-	globalUnlock.Call(memory)
-	if ok, _, err := emptyClipboard.Call(); ok == 0 {
-		globalFree.Call(memory)
-		return err
-	}
-	if ok, _, err := setClipboardData.Call(13, memory); ok == 0 { // CF_UNICODETEXT; ownership passes to Windows.
-		globalFree.Call(memory)
-		return err
-	}
-	return nil
 }
 
 func ReportError(err error) {
