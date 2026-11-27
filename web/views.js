@@ -60,8 +60,6 @@ export function renderConversation(session, force = false) {
   const turns = session?.turns || [];
   const serialized = JSON.stringify(turns);
   $('studio').classList.toggle('has-turns', turns.length > 0);
-  $('session-title').textContent = session?.title || '新的灵感';
-  document.title = session ? `${session.title} · PureAgent` : 'PureAgent · 图像工作台';
   if (serialized === renderedTurns && !force) return;
   const container = $('conversation');
   const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
