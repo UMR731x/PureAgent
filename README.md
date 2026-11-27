@@ -8,7 +8,7 @@ Windows 本地图像创作工作台。Go 后端与 [MyGo](https://mygo.run/) 桌
 
 在 [GitHub Release](https://github.com/UMR731x/PureAgent/releases/latest) 下载 `PureAgent-windows-amd64.zip`，解压后双击 `bin/PureAgent.exe`，直接打开独立桌面窗口，不显示控制台。需要 Microsoft Edge WebView2 运行时；Windows 10 / 11 通常已安装，缺少时可从 [微软官网](https://developer.microsoft.com/microsoft-edge/webview2) 安装。
 
-通知区域显示软件图标，单击打开工作台；右键菜单提供“打开工作台”“打开数据目录”“退出 PureAgent”，保留原有样式。关闭窗口会隐藏到托盘，后台任务继续运行；从托盘退出才会结束进程。同一数据目录只运行一个实例，重复启动会唤起已有窗口；不同数据目录可分别运行。不再提供 Linux 客户端。
+通知区域显示软件图标，单击打开工作台；右键菜单提供“打开工作台”“打开数据目录”“退出 PureAgent”，保留原有样式。关闭窗口会隐藏到托盘，后台任务继续运行；从托盘退出才会结束进程。唤起工作台时保留此前的最大化状态或普通窗口的大小与位置。同一数据目录只运行一个实例，重复启动会唤起已有窗口；不同数据目录可分别运行。不再提供 Linux 客户端。
 
 Windows Release 默认使用安装目录中的 `data`：客户端位于 `bin` 内时使用 `bin` 上一级的 `data`；单文件客户端使用自身所在目录的 `data`。显式 `-data` 参数仍按启动时的工作目录解析。
 

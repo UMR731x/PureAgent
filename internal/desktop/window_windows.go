@@ -90,7 +90,10 @@ func loadWorkspace(window *mygo.Window, options Options, fail func(error)) {
 			fail(err)
 			return
 		}
-		showWorkspace(window)
+		// Older installers launch with SW_HIDE. Override it only on the first show;
+		// ShowInactive would reset a maximized window to normal bounds on later calls.
+		window.ShowInactive()
+		window.Focus()
 	})
 	window.Page().OnDidFailLoad(func(err *mygo.LoadError) {
 		if !loaded {
@@ -114,9 +117,7 @@ func showWorkspace(window *mygo.Window) {
 	if window.IsMinimized() {
 		window.Restore()
 	}
-	// Older installers launch with SW_HIDE. ShowInactive overrides that first-show
-	// setting; Focus then activates the window normally.
-	window.ShowInactive()
+	window.Show()
 	window.Focus()
 }
 
