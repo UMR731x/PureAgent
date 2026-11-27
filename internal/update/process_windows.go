@@ -9,7 +9,8 @@ import (
 )
 
 func detach(command *exec.Cmd) {
-	command.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x00000008, HideWindow: true} // DETACHED_PROCESS
+	// Detach from the console without hiding the desktop client's first window.
+	command.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x00000008} // DETACHED_PROCESS
 }
 
 func waitForParent(pid int) (func() error, error) {

@@ -26,24 +26,16 @@ jobs:
         run: python3 .github/release_metadata.py
 
   test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.27'
+          go-version-file: go.mod
           cache: false
       - name: Test native client replacement and image sessions
         shell: bash
-        run: |
-          if [ "$RUNNER_OS" = Linux ]; then
-            go test -race -timeout 60s ./internal/...
-          else
-            go test -timeout 60s ./internal/...
-          fi
+        run: go test -timeout 60s ./internal/...
 
   build:
     needs: [release-metadata, test]
@@ -57,11 +49,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27'
+          go-version-file: go.mod
           cache: false
 
       - name: Check Go code
-        run: go vet ./...
+        run: GOOS=windows GOARCH=amd64 go vet ./...
 
       - name: Check browser JavaScript
         run: |
@@ -69,16 +61,12 @@ jobs:
             node --input-type=module --check < "$source"
           done
 
-      - name: Build Windows and Linux packages
+      - name: Build Windows package
         run: |
-          mkdir -p dist/windows/bin dist/linux/bin
+          mkdir -p dist/windows/bin
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H=windowsgui -X main.version=$VERSION" -o dist/windows/bin/PureAgent.exe .
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-X main.version=$VERSION" -o dist/linux/bin/pureagent .
           cp start.cmd README.md dist/windows/
-          cp README.md dist/linux/
-          tar -czf dist/PureAgent-linux-amd64.tar.gz -C dist/linux .
           cp dist/windows/bin/PureAgent.exe dist/PureAgent-windows-amd64.exe
-          cp dist/linux/bin/pureagent dist/PureAgent-linux-amd64
           cd dist/windows
           zip -r ../PureAgent-windows-amd64.zip .
 
@@ -87,12 +75,6 @@ jobs:
         with:
           name: PureAgent-windows-amd64
           path: dist/windows/
-
-      - name: Upload Linux package
-        uses: actions/upload-artifact@v7
-        with:
-          name: PureAgent-linux-amd64
-          path: dist/PureAgent-linux-amd64.tar.gz
 
       - name: Upload release assets
         if: needs.release-metadata.outputs.publish == 'true'

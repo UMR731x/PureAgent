@@ -528,14 +528,16 @@ async function initialize() {
     state.sessions = sessions;
     renderModels(state.models, localStorage.getItem('pureagent-model'));
     historyView.render();
-    const selected = new URLSearchParams(location.search).get('session');
+    const desktopDraft = JSON.parse(localStorage.getItem('pureagent-desktop-update') || 'null');
+    const selected = desktopDraft ? desktopDraft.session : new URLSearchParams(location.search).get('session');
     if (selected) await openSession(selected);
     else updateControls();
-    const savedDrafts = sessionStorage.getItem('pureagent-update-drafts');
+    const savedDrafts = desktopDraft?.drafts || JSON.parse(sessionStorage.getItem('pureagent-update-drafts') || 'null');
     if (savedDrafts) {
-      sessionStorage.removeItem('pureagent-update-drafts');
-      for (const [id, draft] of JSON.parse(savedDrafts)) drafts.set(id, draft);
+      for (const [id, draft] of savedDrafts) drafts.set(id, draft);
       restoreDraft(state.session?.id);
+      sessionStorage.removeItem('pureagent-update-drafts');
+      localStorage.removeItem('pureagent-desktop-update');
     }
     schedulePoll();
   } catch (error) { showError('composer-error', `无法连接本地工作空间：${error.message}`); }
@@ -546,4 +548,8 @@ initializeUsage(() => state.models.find(model => model.id === $('model').value))
 initializeUpdates(() => {
   saveDraft();
   sessionStorage.setItem('pureagent-update-drafts', JSON.stringify([...drafts]));
+});
+window.addEventListener('pureagent-before-update', () => {
+  saveDraft();
+  localStorage.setItem('pureagent-desktop-update', JSON.stringify({ session: state.session?.id, drafts: [...drafts] }));
 });

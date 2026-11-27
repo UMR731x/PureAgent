@@ -7,8 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"pureagent/internal/desktop"
 	"pureagent/internal/studio"
@@ -27,7 +25,12 @@ func main() {
 		return
 	}
 	if err := run(); err != nil {
-		desktop.ReportError(err)
+		if len(os.Args) == 3 && os.Args[1] == update.RestartFlag {
+			// The installer needs this process to exit before it can restore the old client.
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			desktop.ReportError(err)
+		}
 		os.Exit(1)
 	}
 }
@@ -97,38 +100,30 @@ func run() error {
 }
 
 func serve(server *http.Server, listener net.Listener, directory string, restarted *update.Restart, restartRequested <-chan struct{}, reportUpdateFailure func(string)) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	finished := make(chan error, 1)
-	go func() { finished <- server.Serve(listener) }()
+	go func() {
+		finished <- server.Serve(listener)
+		cancel()
+	}()
 	defer server.Close()
-	quitRequested := make(chan struct{}, 1)
-	stopDesktop, err := desktop.Start(desktop.Options{
-		URL: "http://" + server.Addr, Directory: directory, Version: version, OpenBrowser: restarted == nil,
-		Exit: func() {
-			select {
-			case quitRequested <- struct{}{}:
-			default:
+	err := desktop.Run(ctx, desktop.Options{
+		URL: "http://" + server.Addr, Directory: directory, Version: version, Restart: restartRequested,
+		Ready: func() error {
+			if restarted != nil {
+				return restarted.Ready(reportUpdateFailure)
 			}
+			return nil
 		},
 	})
 	if err != nil {
 		return err
 	}
-	defer stopDesktop()
-	if restarted != nil {
-		if err := restarted.Ready(reportUpdateFailure); err != nil {
-			return err
-		}
-	}
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(signals)
-	fmt.Printf("PureAgent %s · http://%s\n", version, server.Addr)
 	select {
-	case <-signals:
-	case <-quitRequested:
-	case <-restartRequested:
 	case err := <-finished:
 		return err
+	default:
 	}
 	// Finish uploads and JSON writes before exiting. Update-triggered shutdown has already drained image jobs.
 	return server.Shutdown(context.Background())

@@ -13,11 +13,13 @@ import (
 const trayClass = "PureAgent.Tray"
 
 type trayWindow struct {
-	options      Options
-	window       uintptr
-	icon         notificationIcon
-	taskbarReady uint32
-	menu         *trayMenu
+	options       Options
+	window        uintptr
+	icon          notificationIcon
+	taskbarReady  uint32
+	menu          *trayMenu
+	openWorkspace func()
+	exit          func()
 }
 
 func wide(value string) *uint16 { return syscall.StringToUTF16Ptr(value) }
@@ -43,8 +45,8 @@ func Activate(address string) bool {
 	return true
 }
 
-func Start(options Options) (func(), error) {
-	tray := &trayWindow{options: options}
+func startTray(options Options, openWorkspace, exit func()) (func(), error) {
+	tray := &trayWindow{options: options, openWorkspace: openWorkspace, exit: exit}
 	ready := make(chan error, 1)
 	done := make(chan struct{})
 	go func() {
@@ -91,9 +93,6 @@ func (tray *trayWindow) run(ready chan<- error) {
 	message, _, _ := registerMessage.Call(uintptr(unsafe.Pointer(wide("TaskbarCreated"))))
 	tray.taskbarReady = uint32(message)
 	ready <- nil
-	if tray.options.OpenBrowser {
-		tray.open(tray.options.URL)
-	}
 	var event windowMessage
 	for {
 		result, _, _ := getMessage.Call(uintptr(unsafe.Pointer(&event)), 0, 0, 0)
@@ -129,7 +128,7 @@ func (tray *trayWindow) loadIcon() error {
 func (tray *trayWindow) dispatch(window uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	switch message {
 	case openWorkspace:
-		tray.open(tray.options.URL)
+		tray.openWorkspace()
 	case windowCommand:
 		tray.command(wParam & 0xffff)
 	case 0x002c: // WM_MEASUREITEM
@@ -145,7 +144,7 @@ func (tray *trayWindow) dispatch(window uintptr, message uint32, wParam, lParam 
 	case trayCallback:
 		switch lParam & 0xffff {
 		case 0x0400, 0x0401: // NIN_SELECT, NIN_KEYSELECT
-			tray.open(tray.options.URL)
+			tray.openWorkspace()
 		case 0x007b: // WM_CONTEXTMENU
 			tray.showMenu()
 		}
@@ -167,7 +166,7 @@ func (tray *trayWindow) dispatch(window uintptr, message uint32, wParam, lParam 
 func (tray *trayWindow) command(command uintptr) {
 	switch command {
 	case menuWorkspace:
-		tray.open(tray.options.URL)
+		tray.openWorkspace()
 	case menuDirectory:
 		tray.open(tray.options.Directory)
 	case menuCopyURL:
@@ -175,7 +174,7 @@ func (tray *trayWindow) command(command uintptr) {
 			ReportError(err)
 		}
 	case menuExit:
-		tray.options.Exit()
+		tray.exit()
 	}
 }
 

@@ -1,27 +1,20 @@
 # PureAgent
 
-本地运行的图像创作工作台。Go 后端与内嵌 Web UI，无第三方运行依赖。
+Windows 本地图像创作工作台。Go 后端与 [MyGo](https://mygo.run/) 桌面窗口，使用系统 WebView2 显示内嵌界面，保留原有布局、配色和交互。
 支持 Seedream 5.5 / AgentPlan 与 OpenAI Images（GPT Image 2.6）。可保存多个模型配置，分别选择接口类型、模型名称、API Key 和 URL。
 
 ## 启动
 
-Windows：在 [GitHub Release](https://github.com/UMR731x/PureAgent/releases/latest) 下载 `PureAgent-windows-amd64.zip`，解压后双击 `bin/PureAgent.exe`，自动在默认浏览器中打开 **http://127.0.0.1:57123**，不显示控制台。通知区域显示软件图标，单击打开工作台；右键菜单提供“打开工作台”“打开数据目录”“复制访问地址”“退出 PureAgent”。退出会结束后台进程并释放端口，关闭浏览器页面则继续后台运行。重复启动同一端口会打开已有工作台。从源码克隆的项目需先按下方命令构建。
+在 [GitHub Release](https://github.com/UMR731x/PureAgent/releases/latest) 下载 `PureAgent-windows-amd64.zip`，解压后双击 `bin/PureAgent.exe`，直接打开独立桌面窗口，不显示控制台。需要 Microsoft Edge WebView2 运行时；Windows 10 / 11 通常已安装，缺少时可从 [微软官网](https://developer.microsoft.com/microsoft-edge/webview2) 安装。
+
+通知区域显示软件图标，单击打开工作台；右键菜单保留“打开工作台”“打开数据目录”“复制访问地址”“退出 PureAgent”及原有样式。关闭窗口会隐藏到托盘，后台任务继续运行；从托盘退出才会结束进程并释放端口。重复启动同一端口会唤起已有窗口。从本版本起不再提供 Linux 客户端。
 
 Windows Release 默认使用安装目录中的 `data`：客户端位于 `bin` 内时使用 `bin` 上一级的 `data`；单文件客户端使用自身所在目录的 `data`。显式 `-data` 参数仍按启动时的工作目录解析。
 
-Linux：下载 Release 中的 `PureAgent-linux-amd64.tar.gz`，解压后在该目录运行 `./bin/pureagent`。
-
-从源码运行（Go 1.24 或更新版本）：
+从源码运行（Windows，Go 1.27.3 或更新版本）：
 
 ```sh
 go run -buildvcs=false .
-```
-
-构建并运行：
-
-```sh
-go build -buildvcs=false -o bin/pureagent .
-./bin/pureagent
 ```
 
 Windows 构建：
@@ -33,8 +26,8 @@ go build -buildvcs=false -ldflags "-H=windowsgui" -o bin/PureAgent.exe .
 
 监听地址固定为 `127.0.0.1`。端口与数据目录可以在启动时指定：
 
-```sh
-./bin/pureagent -port 57125 -data ./data
+```powershell
+.\bin\PureAgent.exe -port 57125 -data .\data
 ```
 
 默认数据目录是**当前工作目录**下的 `data/`；`start.cmd` 会先进入项目根目录。`-buildvcs=false` 使从不含 Git 元数据的源码副本构建时也能工作。
@@ -44,13 +37,15 @@ go build -buildvcs=false -ldflags "-H=windowsgui" -o bin/PureAgent.exe .
 
 左下角“检查并更新”会读取本仓库最新正式 Release，下载匹配当前系统的客户端并校验下载完整性。已有生成任务会先完成，随后自动替换客户端、重启并恢复页面；新版本正常启动后删除旧客户端和临时更新文件，启动失败则恢复原版本并显示错误。
 
-更新只替换运行中的可执行文件，保留原工作目录、端口和实际使用的数据目录；配置、会话 JSON、上传原图和生成结果不会被迁移或删除。自动重启后保留托盘、恢复页面中的当前任务和未提交输入，不额外打开浏览器标签页。请勿在更新过程中移动安装目录。
+更新只替换运行中的可执行文件，保留原工作目录、端口和实际使用的数据目录；配置、会话 JSON、上传原图和生成结果不会被迁移或删除。桌面客户端自动重启后恢复托盘、窗口中的当前任务和未提交输入。请勿在更新过程中移动安装目录。
+
+从浏览器版首次升级时，旧浏览器中的未提交输入和外观偏好不会自动转入桌面窗口；已保存的任务、原图和模型配置直接沿用原有 `data`。
 
 没有更新入口的旧客户端需要先手动替换一次 `bin` 中对应文件，保留 `data`。源码开发构建显示 `dev`，不会自行替换源码运行产生的临时程序；一键更新适用于 Release 客户端。
 
 ## 使用
 
-右上角的外观按钮提供“日间模式”“夜间模式”和“跟随系统”。首次使用保持日间配色，选择保存在当前浏览器；“跟随系统”会实时响应系统明暗变化。
+右上角的外观按钮提供“日间模式”“夜间模式”和“跟随系统”。首次使用保持日间配色，选择保存在桌面窗口的 WebView2 用户配置中；“跟随系统”会实时响应系统明暗变化。
 
 1. 右上角“模型设置”中选择接口类型并保存配置。旧配置仍按 Seedream 处理。同一接口类型的已有密钥留空时保持原值；切换接口类型需填写对应密钥，界面不会回传已保存的密钥。
 2. 输入描述，选择模型与生成参数。点击“生成”，或按 `Ctrl/⌘ + Enter`。
@@ -140,7 +135,7 @@ data/
 ## 检查
 
 ```sh
-go test -buildvcs=false -race -timeout 60s ./internal/...
+go test -buildvcs=false -timeout 60s ./internal/...
 go vet -buildvcs=false ./...
 ```
 

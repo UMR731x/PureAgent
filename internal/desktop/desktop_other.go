@@ -2,9 +2,15 @@
 
 package desktop
 
-import "log"
+import (
+	"context"
+	"fmt"
+	"log"
+)
 
-func Start(Options) (func(), error) { return func() {}, nil }
+func Run(context.Context, Options) error {
+	return fmt.Errorf("PureAgent 桌面客户端仅支持 Windows")
+}
 
 func Activate(string) bool { return false }
 

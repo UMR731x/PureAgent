@@ -249,7 +249,7 @@ func ReadRestart(planPath string) (*Restart, error) {
 	return &Restart{Arguments: s.plan.Arguments, Failure: s.plan.Failure, stage: s}, nil
 }
 
-// Ready must only be called after data recovery and the HTTP listener have succeeded.
+// Ready must only be called after data recovery, the HTTP listener and the desktop page have succeeded.
 func (r *Restart) Ready(reportFailure func(string)) error {
 	wait, err := waitForParent(r.stage.plan.HelperPID)
 	if err != nil {
